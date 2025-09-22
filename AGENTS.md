@@ -1,0 +1,25 @@
+# AGENTS: Build, Test, and Style (repo-wide)
+
+- Scope: This repo is an agent/config workspace. No app build here; use these commands/rules when operating in linked projects.
+- Build/Lint/Test:
+  - JavaScript/TypeScript: `npm run preflight` (build+test+typecheck+lint). Single test (Vitest): `npx vitest path/to/file.test.ts -t "Test name"`.
+  - Rust: `cargo check`; `cargo clippy -- -Dwarnings`; single test: `cargo test <test_name_or_path>`.
+  - Swift: macOS tests: `set -o pipefail && xcodebuild -configuration Debug -scheme $SCHEME-Package -destination "platform=macOS,name=My Mac" test | xcbeautify`. Single test: add `-only-testing:<TargetTests>/<TestCase>/<testMethod>`.
+  - Python: `black . && isort . && flake8 . && mypy .`; tests: `pytest -k "name"`.
+- Required tools: prefer `rg` for search; `sg`/`ast-grep` for structural search/rewrites; `gemini` for summarizing large docs (see codex/AGENTS.md guidance embedded in this repo).
+- Imports:
+  - Use ES Modules; prefer explicit named imports; group as std/third-party/local; avoid side‑effect and wildcard imports except intentional barrel files.
+- Formatting:
+  - 4-space indentation; run Prettier (JS/TS), `rustfmt`/Clippy (Rust), `swift-format`/SwiftLint (Swift), Black/Isort (Python). No trailing spaces; keep lines reasonable.
+- Types:
+  - TS in strict mode; avoid `any` and unsafe assertions; prefer `unknown` + narrowing. Swift: adopt Sendable/actors; Rust: heed Clippy; Python: add precise type hints.
+- Naming:
+  - lowerCamelCase vars/functions; PascalCase types/classes/components; SCREAMING_SNAKE_CASE constants/env; files kebab-case (React components PascalCase files).
+- Error handling:
+  - Never throw strings; use `Error` subclasses (JS/TS). Add context; don’t swallow errors. Swift: `throws` + `do/catch` and MainActor isolation for UI. Rust: `thiserror`/`anyhow` with `context`. Python: raise specific exceptions.
+- Git hygiene:
+  - Small, focused commits; run checks before committing (see opencode/commands/check.md). Do not commit secrets.
+- Cursor/Copilot rules:
+  - None found in repo (`.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md` absent). If added later, mirror key rules here.
+- Security & secrets:
+  - Treat API keys and provider tokens in config (e.g., codex/config.toml) as secrets; never echo in logs or PRs.
