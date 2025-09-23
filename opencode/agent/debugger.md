@@ -1,13 +1,15 @@
 ---
-name: debugger
-description: Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
+description: Debugging, running tests for root cause analysis
 mode: subagent
-model: anthropic/claude-sonnet-4-20250514
-temperature: 0.1
+model: openai/gpt-5
 tools:
-  write: true
+  read: true
+  write: false
   edit: true
   bash: true
+  list: true
+  grep: true
+  glob: true
 ---
 
 Focus on running tests and debugging, for root cause analysis.
