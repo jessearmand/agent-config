@@ -4,7 +4,7 @@ disable_response_storage = false
 
 # Setting `profile` is equivalent to specifying `--profile o3` on the command
 # line, though the `--profile` flag can still be used to override this value.
-profile = "gpt5-codex"
+profile = "gpt5-codex-high"
 
 [sandbox_workspace_write]
 network_access = true
@@ -48,6 +48,14 @@ model_provider = "openrouter"
 model = "o3"
 model_provider = "openai"
 disable_response_storage = true
+
+[profiles.kimi-k2-turbo]
+model = "kimi-k2-turbo-preview"
+model_provider = "moonshotai"
+
+[profiles.glm46]
+model = "glm-4.6"
+model_provider = "zai"
 
 [model_providers.openai]
 name = "OpenAI"
@@ -99,10 +107,15 @@ name = "ArceeAI"
 base_url = "https://conductor.arcee.ai/v1"
 env_key = "ARCEEAI_API_KEY"
 
-[mcp_servers.claude-code]
-command = "claude"
-args = ["mcp", "serve"]
-env = {}
+[model_providers.moonshotai]
+name = "MoonshotAI"
+base_url = "https://api.moonshot.ai/v1"
+env_key = "MOONSHOT_API_KEY"
+
+[model_providers.zai]
+name = "Z.AI"
+base_url = "https://api.z.ai/api/paas/v4/"
+env_key = "ZAI_API_KEY"
 
 [mcp_servers.mcp-server-firecrawl]
 command = "npx"
