@@ -4,7 +4,7 @@ disable_response_storage = false
 
 # Setting `profile` is equivalent to specifying `--profile o3` on the command
 # line, though the `--profile` flag can still be used to override this value.
-profile = "gpt5-codex-high"
+profile = "gpt51-codex-high"
 
 [sandbox_workspace_write]
 network_access = true
@@ -15,22 +15,22 @@ base_url = "https://api.openai.com/v1"
 env_key = "OPENAI_API_KEY"
 wire_api = "chat"
 
-[profiles.gpt5-codex]
-model = "gpt-5-codex-max"
+[profiles.gpt51-codex]
+model = "gpt-5.1-codex-max"
 model_provider = "openai"
 model_reasoning_effort = "medium"
 
-[profiles.gpt5-codex-high]
-model = "gpt-5-codex-max"
+[profiles.gpt51-codex-high]
+model = "gpt-5.1-codex-max"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.gpt5]
-model = "gpt-5"
+[profiles.gpt51]
+model = "gpt-5.1"
 model_provider = "openai"
 
-[profiles.gpt5-high]
-model = "gpt-5"
+[profiles.gpt51-high]
+model = "gpt-5.1"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
