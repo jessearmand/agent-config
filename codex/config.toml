@@ -9,6 +9,17 @@ profile = "gpt51-codex-high"
 [sandbox_workspace_write]
 network_access = true
 
+[features]
+# Leave this table empty to accept defaults. Set explicit booleans to opt in/out.
+unified_exec = false
+rmcp_client = false
+apply_patch_freeform = false
+view_image_tool = true
+web_search_request = true
+experimental_sandbox_command_assessment = false
+ghost_commit = false
+enable_experimental_windows_sandbox = false
+
 [model_providers.openai-chat-completions]
 name = "OpenAI using Chat Completions"
 base_url = "https://api.openai.com/v1"
