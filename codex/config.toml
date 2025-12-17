@@ -4,7 +4,7 @@ disable_response_storage = false
 
 # Setting `profile` is equivalent to specifying `--profile o3` on the command
 # line, though the `--profile` flag can still be used to override this value.
-profile = "gpt51-codex-high"
+profile = "gpt52-high"
 
 [sandbox_workspace_write]
 network_access = true
@@ -36,29 +36,23 @@ model = "gpt-5.1-codex-max"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.gpt51]
-model = "gpt-5.1"
+[profiles.gpt52]
+model = "gpt-5.2"
 model_provider = "openai"
 
-[profiles.gpt51-high]
-model = "gpt-5.1"
+[profiles.gpt52-high]
+model = "gpt-5.2"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.o3]
-model = "o3"
+[profiles.gpt52-extrahigh]
+model = "gpt-5.2"
 model_provider = "openai"
-model_reasoning_effort = "high"
-model_reasoning_summary = "detailed"
+model_reasoning_effort = "xhigh"
 
 [profiles.gpt-oss]
 model = "openai/gpt-oss-120b"
 model_provider = "openrouter"
-
-[profiles.zdr]
-model = "o3"
-model_provider = "openai"
-disable_response_storage = true
 
 [profiles.kimi-k2-turbo]
 model = "kimi-k2-turbo-preview"
