@@ -1,7 +1,6 @@
 ---
 name: scanning-code
-description: Structural code search using an AST-based pattern tool (e.g., ast-grep). Use `kind` for "all X" queries and `pattern` for specific code shapes.
-compatibility: Requires ast-grep (or an equivalent AST-aware search tool).
+description: Structural code search using an AST-based pattern tool (e.g., ast-grep). Use `kind` for "all X" queries and `pattern` for specific code shapes. Use ast-grep instead of sg on Linux.
 ---
 
 # scanning-code: Structural Code Search
