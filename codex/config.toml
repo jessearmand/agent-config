@@ -26,15 +26,20 @@ base_url = "https://api.openai.com/v1"
 env_key = "OPENAI_API_KEY"
 wire_api = "chat"
 
-[profiles.gpt51-codex]
-model = "gpt-5.1-codex-max"
+[profiles.gpt52-codex]
+model = "gpt-5.2-codex"
 model_provider = "openai"
 model_reasoning_effort = "medium"
 
-[profiles.gpt51-codex-high]
-model = "gpt-5.1-codex-max"
+[profiles.gpt52-codex-high]
+model = "gpt-5.2-codex"
 model_provider = "openai"
 model_reasoning_effort = "high"
+
+[profiles.gpt52-codex-xhigh]
+model = "gpt-5.2-codex"
+model_provider = "openai"
+model_reasoning_effort = "xhigh"
 
 [profiles.gpt52]
 model = "gpt-5.2"
@@ -45,7 +50,7 @@ model = "gpt-5.2"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.gpt52-extrahigh]
+[profiles.gpt52-xhigh]
 model = "gpt-5.2"
 model_provider = "openai"
 model_reasoning_effort = "xhigh"
@@ -58,8 +63,8 @@ model_provider = "openrouter"
 model = "kimi-k2-turbo-preview"
 model_provider = "moonshotai"
 
-[profiles.glm46]
-model = "glm-4.6"
+[profiles.glm47]
+model = "glm-4.7"
 model_provider = "zai"
 
 [model_providers.openai]
