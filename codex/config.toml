@@ -18,7 +18,6 @@ view_image_tool = true
 web_search_request = true
 experimental_sandbox_command_assessment = false
 ghost_commit = false
-enable_experimental_windows_sandbox = false
 
 [model_providers.openai-chat-completions]
 name = "OpenAI using Chat Completions"
@@ -128,11 +127,12 @@ base_url = "https://api.z.ai/api/paas/v4/"
 env_key = "ZAI_API_KEY"
 
 [mcp_servers.mcp-server-firecrawl]
-command = "npx"
+command = "bunx"
 args = ["-y", "firecrawl-mcp"]
+env_vars = ["FIRECRAWL_API_KEY"]
 
 [mcp_servers.mcp-server-firecrawl.env]
-FIRECRAWL_API_KEY = "$FIRECRAWL_API_KEY"
+FIRECRAWL_API_KEY = "FIRECRAWL_API_KEY"
 FIRECRAWL_RETRY_MAX_ATTEMPTS = "5" 
 FIRECRAWL_RETRY_INITIAL_DELAY = "2000" 
 FIRECRAWL_RETRY_MAX_DELAY = "30000" 
@@ -140,7 +140,14 @@ FIRECRAWL_RETRY_BACKOFF_FACTOR = "3"
 FIRECRAWL_CREDIT_WARNING_THRESHOLD = "2000" 
 FIRECRAWL_CREDIT_CRITICAL_THRESHOLD = "500"
 
-[mcp_servers.playwright]
-command = "npx"
-args = ["@playwright/mcp@latest", "--executable-path", "/Applications/Google Chrome Dev.app/Contents/MacOS/Google Chrome Dev"]
+[mcp_servers.context7]
+type = "http"
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.context7.env_http_headers]
+CONTEXT7_API_KEY = "CONTEXT7_API_KEY"
+
+# [mcp_servers.playwright]
+# command = "npx"
+# args = ["@playwright/mcp@latest", "--executable-path", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
 
