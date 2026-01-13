@@ -16,7 +16,7 @@ Important:
 - EXCEPTION: when there are modified files from the process of checking, ONLY add those modified files
 
 Process:
-1. Perform checks based on @~/.config/opencode/commands/check.md
+1. Perform checks based on @~/.config/opencode/command/check.md
 2. After checks are resolved, proceed with reviewing the output of `git diff`
 3. Review modified files from the process of checking, ONLY add those modified files
 4. Run `git diff --staged`, then ONLY commit the staged changes
