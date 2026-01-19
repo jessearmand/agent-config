@@ -14,7 +14,7 @@ Commit message guidelines (Conventional Commits):
 - Use the format `<type>[optional scope][!]: <description>`.
 - Use `feat` for new features and `fix` for bug fixes; other allowed types include `docs`, `refactor`, `chore`, `test`, `perf`, `ci`, `build`, and `style`.
 - Add a scope in parentheses when it clarifies the area affected, e.g. `feat(parser):`.
-- Keep the description short, specific, and immediately after the colon and space.
+- Keep the description within 100 column width limit, and immediately after the colon and space.
 - Add a body when extra context is useful; start it one blank line after the description.
 - Add footers after another blank line using trailer style (e.g. `Refs: #123`).
 - Indicate breaking changes with `!` before the colon or a `BREAKING CHANGE:` footer.
@@ -34,7 +34,7 @@ Important:
 - EXCEPTION: when there are modified files from the process of checking, ONLY add those modified files
 
 Process:
-1. Perform checks based on @$HOME/.config/opencode/command/check.md
+1. Perform slash command /check refer to project setup for running checks, tests or linting
 2. After checks are resolved, proceed with reviewing the output of `git diff`
 3. Review modified files from the process of checking, ONLY add those modified files
 4. Run `git diff --staged`, then ONLY commit the staged changes
