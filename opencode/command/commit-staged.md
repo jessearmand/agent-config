@@ -1,7 +1,7 @@
 ---
 description: Perform commit on staged changes 
 agent: build
-model: anthropic/claude-haiku-4-5-20251001
+model: openai/gpt-5.2-codex
 ---
 
 Commit staged changes with clear title and description
