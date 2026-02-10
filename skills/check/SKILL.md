@@ -1,7 +1,6 @@
 ---
+name: check
 description: Perform code quality and security checks
-agent: build
-model: openai/gpt-5.2-codex
 ---
 
 Run project-specific check command and resolve any resulting errors.

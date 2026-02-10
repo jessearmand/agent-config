@@ -22,7 +22,6 @@
     }
   },
   "plugin": [
-    "opencode-openai-codex-auth@4.1.0",
     "opencode-gemini-auth"
   ],
   "provider": {

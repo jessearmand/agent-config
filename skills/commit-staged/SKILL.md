@@ -1,13 +1,12 @@
 ---
-description: Perform commit on staged changes 
-agent: build
-model: openai/gpt-5.2-codex
+name: commit-staged
+description: Perform commit on staged changes with clear description and body
 ---
 
-Commit staged changes with clear title and description
+Commit staged changes with clear description and body
 
 Primary Task:
-Run `git diff --staged`, review the changes, commit the staged changes with clear title and description.
+Run `git diff --staged`, review the changes, commit the staged changes with clear description and body.
 Describe the purpose of the changes, prioritize clarity, readability, and minimize ambiguity.
 
 Commit message guidelines (Conventional Commits):

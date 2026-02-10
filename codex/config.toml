@@ -19,12 +19,6 @@ web_search_request = true
 experimental_sandbox_command_assessment = false
 ghost_commit = false
 
-[model_providers.openai-chat-completions]
-name = "OpenAI using Chat Completions"
-base_url = "https://api.openai.com/v1"
-env_key = "OPENAI_API_KEY"
-wire_api = "chat"
-
 [profiles.gpt52-codex]
 model = "gpt-5.2-codex"
 model_provider = "openai"
@@ -126,20 +120,6 @@ name = "Z.AI"
 base_url = "https://api.z.ai/api/paas/v4/"
 env_key = "ZAI_API_KEY"
 
-[mcp_servers.mcp-server-firecrawl]
-command = "bunx"
-args = ["-y", "firecrawl-mcp"]
-env_vars = ["FIRECRAWL_API_KEY"]
-
-[mcp_servers.mcp-server-firecrawl.env]
-FIRECRAWL_API_KEY = "FIRECRAWL_API_KEY"
-FIRECRAWL_RETRY_MAX_ATTEMPTS = "5" 
-FIRECRAWL_RETRY_INITIAL_DELAY = "2000" 
-FIRECRAWL_RETRY_MAX_DELAY = "30000" 
-FIRECRAWL_RETRY_BACKOFF_FACTOR = "3" 
-FIRECRAWL_CREDIT_WARNING_THRESHOLD = "2000" 
-FIRECRAWL_CREDIT_CRITICAL_THRESHOLD = "500"
-
 [mcp_servers.context7]
 type = "http"
 url = "https://mcp.context7.com/mcp"
@@ -151,7 +131,4 @@ CONTEXT7_API_KEY = "CONTEXT7_API_KEY"
 type = "http"
 url = "https://mcp.grep.app"
 
-# [mcp_servers.playwright]
-# command = "npx"
-# args = ["@playwright/mcp@latest", "--executable-path", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
 
