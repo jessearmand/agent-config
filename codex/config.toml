@@ -1,23 +1,34 @@
 sandbox_mode = "workspace-write"
-approval_policy = "untrusted"
-disable_response_storage = false
+approval_policy = "on-request"
+
+model_reasoning_summary = "detailed"
+model_verbosity = "medium"
+model_supports_reasoning_summaries = true
+web_search = "live"
 
 # Setting `profile` is equivalent to specifying `--profile o3` on the command
 # line, though the `--profile` flag can still be used to override this value.
-profile = "gpt52-high"
+profile = "gpt53-codex"
+
+[history]
+persistence = "save-all"
 
 [sandbox_workspace_write]
 network_access = true
 
 [features]
-# Leave this table empty to accept defaults. Set explicit booleans to opt in/out.
-unified_exec = false
-rmcp_client = false
-apply_patch_freeform = false
-view_image_tool = true
-web_search_request = true
-experimental_sandbox_command_assessment = false
-ghost_commit = false
+multi_agent = true
+apps = true
+
+[profiles.gpt53-codex]
+model = "gpt-5.3-codex"
+model_provider = "openai"
+model_reasoning_effort = "high"
+
+[profiles.gpt53-codex-spark]
+model = "gpt-5.3-codex-spark"
+model_provider = "openai"
+model_reasoning_effort = "high"
 
 [profiles.gpt52-codex]
 model = "gpt-5.2-codex"
@@ -121,14 +132,10 @@ base_url = "https://api.z.ai/api/paas/v4/"
 env_key = "ZAI_API_KEY"
 
 [mcp_servers.context7]
-type = "http"
 url = "https://mcp.context7.com/mcp"
 
 [mcp_servers.context7.env_http_headers]
 CONTEXT7_API_KEY = "CONTEXT7_API_KEY"
 
 [mcp_servers.grep]
-type = "http"
 url = "https://mcp.grep.app"
-
-
