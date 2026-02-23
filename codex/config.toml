@@ -63,14 +63,6 @@ model_reasoning_effort = "xhigh"
 model = "openai/gpt-oss-120b"
 model_provider = "openrouter"
 
-[profiles.kimi-k2-turbo]
-model = "kimi-k2-turbo-preview"
-model_provider = "moonshotai"
-
-[profiles.glm47]
-model = "glm-4.7"
-model_provider = "zai"
-
 [model_providers.openai]
 name = "OpenAI"
 base_url = "https://api.openai.com/v1"

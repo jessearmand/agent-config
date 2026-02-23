@@ -21,23 +21,8 @@
       }
     }
   },
-  "plugin": [
-    "opencode-gemini-auth"
-  ],
+  "plugin": [],
   "provider": {
-    "google": {
-      "models": {
-        "gemini-3-pro-preview": {
-          "name": "Gemini 3 Pro High",
-          "options": {
-            "thinkingConfig": {
-              "thinkingLevel": "high",
-              "includeThoughts": true
-            }
-          }
-        }
-      }
-    },
     "openai": {
       "options": {
         "reasoningEffort": "medium",
