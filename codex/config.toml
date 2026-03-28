@@ -1,24 +1,94 @@
-sandbox_mode = "workspace-write"
 approval_policy = "on-request"
-
+model = "gpt-5.4"
+model_reasoning_effort = "high"
 model_reasoning_summary = "detailed"
-model_verbosity = "medium"
 model_supports_reasoning_summaries = true
+model_verbosity = "medium"
+profile = "gpt54"
+sandbox_mode = "workspace-write"
 web_search = "live"
 
-# Setting `profile` is equivalent to specifying `--profile o3` on the command
-# line, though the `--profile` flag can still be used to override this value.
-profile = "gpt53-codex"
+[features]
+apps = true
+multi_agent = true
 
 [history]
 persistence = "save-all"
 
-[sandbox_workspace_write]
-network_access = true
+[mcp_servers.chrome-devtools]
+args = [
+    "chrome-devtools-mcp@latest",
+    "--autoConnect",
+    "--channel=beta",
+]
+command = "bunx "
+enabled = true
 
-[features]
-multi_agent = true
-apps = true
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+
+[mcp_servers.context7.env_http_headers]
+CONTEXT7_API_KEY = "CONTEXT7_API_KEY"
+
+[mcp_servers.gh-grep]
+url = "https://mcp.grep.app"
+
+[model_providers.arceeai]
+base_url = "https://conductor.arcee.ai/v1"
+env_key = "ARCEEAI_API_KEY"
+name = "ArceeAI"
+
+[model_providers.azure]
+base_url = "https://YOUR_PROJECT_NAME.openai.azure.com/openai"
+env_key = "AZURE_OPENAI_API_KEY"
+name = "AzureOpenAI"
+
+[model_providers.deepseek]
+base_url = "https://api.deepseek.com"
+env_key = "DEEPSEEK_API_KEY"
+name = "DeepSeek"
+
+[model_providers.gemini]
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
+env_key = "GEMINI_API_KEY"
+name = "Gemini"
+
+[model_providers.groq]
+base_url = "https://api.groq.com/openai/v1"
+env_key = "GROQ_API_KEY"
+name = "Groq"
+
+[model_providers.mistral]
+base_url = "https://api.mistral.ai/v1"
+env_key = "MISTRAL_API_KEY"
+name = "Mistral"
+
+[model_providers.moonshotai]
+base_url = "https://api.moonshot.ai/v1"
+env_key = "MOONSHOT_API_KEY"
+name = "MoonshotAI"
+
+[model_providers.openrouter]
+base_url = "https://openrouter.ai/api/v1"
+env_key = "OPENROUTER_API_KEY"
+name = "OpenRouter"
+
+[model_providers.xai]
+base_url = "https://api.x.ai/v1"
+env_key = "XAI_API_KEY"
+name = "xAI"
+
+[model_providers.zai]
+base_url = "https://api.z.ai/api/paas/v4/"
+env_key = "ZAI_API_KEY"
+name = "Z.AI"
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[profiles.gpt-oss]
+model = "openai/gpt-oss-120b"
+model_provider = "openrouter"
 
 [profiles.gpt53-codex]
 model = "gpt-5.3-codex"
@@ -30,104 +100,17 @@ model = "gpt-5.3-codex-spark"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.gpt52-codex]
-model = "gpt-5.2-codex"
-model_provider = "openai"
-model_reasoning_effort = "medium"
-
-[profiles.gpt52-codex-high]
-model = "gpt-5.2-codex"
+[profiles.gpt54]
+model = "gpt-5.4"
 model_provider = "openai"
 model_reasoning_effort = "high"
 
-[profiles.gpt52-codex-xhigh]
-model = "gpt-5.2-codex"
-model_provider = "openai"
-model_reasoning_effort = "xhigh"
+[sandbox_workspace_write]
+network_access = true
 
-[profiles.gpt52]
-model = "gpt-5.2"
-model_provider = "openai"
+[shell_environment_policy]
+inherit = "core"
 
-[profiles.gpt52-high]
-model = "gpt-5.2"
-model_provider = "openai"
-model_reasoning_effort = "high"
+[shell_environment_policy.set]
+RIPGREP_CONFIG_PATH = "/Users/jessearmand/.ripgreprc"
 
-[profiles.gpt52-xhigh]
-model = "gpt-5.2"
-model_provider = "openai"
-model_reasoning_effort = "xhigh"
-
-[profiles.gpt-oss]
-model = "openai/gpt-oss-120b"
-model_provider = "openrouter"
-
-[model_providers.openai]
-name = "OpenAI"
-base_url = "https://api.openai.com/v1"
-env_key = "OPENAI_API_KEY"
-
-[model_providers.azure]
-name = "AzureOpenAI"
-base_url = "https://YOUR_PROJECT_NAME.openai.azure.com/openai"
-env_key = "AZURE_OPENAI_API_KEY"
-
-[model_providers.openrouter]
-name = "OpenRouter"
-base_url = "https://openrouter.ai/api/v1"
-env_key = "OPENROUTER_API_KEY"
-
-[model_providers.gemini]
-name = "Gemini"
-base_url = "https://generativelanguage.googleapis.com/v1beta/openai"
-env_key = "GEMINI_API_KEY"
-
-[model_providers.ollama]
-name = "Ollama"
-base_url = "http://localhost:11434/v1"
-env_key = "OLLAMA_API_KEY"
-
-[model_providers.mistral]
-name = "Mistral"
-base_url = "https://api.mistral.ai/v1"
-env_key = "MISTRAL_API_KEY"
-
-[model_providers.deepseek]
-name = "DeepSeek"
-base_url = "https://api.deepseek.com"
-env_key = "DEEPSEEK_API_KEY"
-
-[model_providers.xai]
-name = "xAI"
-base_url = "https://api.x.ai/v1"
-env_key = "XAI_API_KEY"
-
-[model_providers.groq]
-name = "Groq"
-base_url = "https://api.groq.com/openai/v1"
-env_key = "GROQ_API_KEY"
-
-[model_providers.arceeai]
-name = "ArceeAI"
-base_url = "https://conductor.arcee.ai/v1"
-env_key = "ARCEEAI_API_KEY"
-
-[model_providers.moonshotai]
-name = "MoonshotAI"
-base_url = "https://api.moonshot.ai/v1"
-env_key = "MOONSHOT_API_KEY"
-
-[model_providers.zai]
-name = "Z.AI"
-base_url = "https://api.z.ai/api/paas/v4/"
-env_key = "ZAI_API_KEY"
-
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-
-[mcp_servers.context7.env_http_headers]
-CONTEXT7_API_KEY = "CONTEXT7_API_KEY"
-
-[mcp_servers.grep]
-url = "https://mcp.grep.app"
