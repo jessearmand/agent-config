@@ -18,7 +18,7 @@
 - Error handling:
   - Never throw strings; use `Error` subclasses (JS/TS). Add context; don’t swallow errors. Swift: `throws` + `do/catch` and MainActor isolation for UI. Rust: `thiserror`/`anyhow` with `context`. Python: raise specific exceptions.
 - Git hygiene:
-  - Small, focused commits; run checks before committing (see opencode/commands/check.md). Do not commit secrets.
+  - Small, focused commits; run checks before committing (refer to skills/check/). Do not commit secrets.
 - Cursor/Copilot rules:
   - None found in repo (`.cursor/rules/`, `.cursorrules`, `.github/copilot-instructions.md` absent). If added later, mirror key rules here.
 - Security & secrets:
