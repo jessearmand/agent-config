@@ -1,6 +1,14 @@
 skills/.system/
 .firecrawl/
 
+# Local/private agent configuration overlays and credentials.
+*.local.json
+*.local.toml
+*.private.json
+*.private.toml
+*.secrets.*
+auth.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
