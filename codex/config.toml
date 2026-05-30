@@ -2,8 +2,8 @@ approval_policy = "on-request"
 model_reasoning_summary = "detailed"
 model_supports_reasoning_summaries = true
 model_verbosity = "medium"
-
-profile = "gpt55"
+model = "gpt-5.5"
+model_reasoning_effort = "medium"
 
 sandbox_mode = "workspace-write"
 web_search = "live"
@@ -21,9 +21,7 @@ persistence = "save-all"
 [mcp_servers.chrome-devtools]
 args = [
     "-y",
-    "chrome-devtools-mcp@latest",
-    "--autoConnect",
-    "--channel=beta",
+    "chrome-devtools-mcp@latest"
 ]
 command = "npx"
 enabled = true
@@ -90,9 +88,6 @@ name = "Z.AI"
 [plugins."github@openai-curated"]
 enabled = true
 
-[plugins."browser-use@openai-bundled"]
-enabled = true
-
 [plugins."computer-use@openai-bundled"]
 enabled = true
 
@@ -108,29 +103,11 @@ enabled = true
 [plugins."hugging-face@openai-curated"]
 enabled = true
 
-[profiles.gpt-oss]
-model = "openai/gpt-oss-120b"
-model_provider = "openrouter"
+[plugins."browser@openai-bundled"]
+enabled = true
 
-[profiles.gpt53-codex]
-model = "gpt-5.3-codex"
-model_provider = "openai"
-model_reasoning_effort = "high"
-
-[profiles.gpt53-codex-spark]
-model = "gpt-5.3-codex-spark"
-model_provider = "openai"
-model_reasoning_effort = "high"
-
-[profiles.gpt55]
-model = "gpt-5.5"
-model_provider = "openai"
-model_reasoning_effort = "medium"
-
-[profiles.gpt54]
-model = "gpt-5.4"
-model_provider = "openai"
-model_reasoning_effort = "high"
+[plugins."chrome@openai-bundled"]
+enabled = true
 
 [sandbox_workspace_write]
 network_access = true
