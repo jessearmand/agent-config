@@ -9,3 +9,5 @@
 - Use 4-space indentation unless the surrounding file uses another convention. Keep skills and scripts modular; split long workflows into focused files instead of growing one large file.
 - Prefer existing repo conventions and tool-owned formatting. For TypeScript/JavaScript, rely on the configured linter/formatter such as oxlint, Prettier, or the project-local equivalent instead of adding framework-specific style rules here.
 - Keep commits small and focused. Before committing, review `git diff --staged` for accidental local paths, generated state, and secrets.
+- Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project
+- If you don't have write access to the current working directory, ask the user to create scratchpad directory with proper permission

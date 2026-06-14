@@ -8,7 +8,9 @@ Ask for clarifications if the task is unreasonable or infeasible, or if any of t
 
 # Tool Use
 
-- Only use `rg` for recursive search, manual or automatic filtering of plain text output
+- Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project
+- If you don't have write access to the current working directory, ask the user to create scratchpad directory with proper permission
+- Only use `rg` for recursive search, manual or automatic filtering of plain text outputwl
 
 # Development and Coding Styles
 
