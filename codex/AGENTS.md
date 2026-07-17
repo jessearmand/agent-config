@@ -13,7 +13,7 @@ Ask for clarifications if the task is unreasonable or infeasible, or if any of t
 
 # Development and Coding Styles
 
-- Use 4-space indentation, unless project or editor settings is configured otherwise
+- Use standardized code formatter and linter, based on the project context
 - Be precise and targeted in examining where changes need to be made
 - Avoid inline styles, create separate CSS files
 - Avoid creating a large file, split it into reusable modules
@@ -26,17 +26,3 @@ Language-specific guidance is provided via skills that are loaded when relevant:
 - `lang-swift` - Swift/SwiftUI development
 - `xcode-build` - Xcode build, test, and profiling
 
-# Available Tools
-
-## ripgrep
-
-ripgrep is a command line tool that searches your files for patterns that you give it. ripgrep behaves as if reading each file line by line.
-
-How to find all function definitions whose name is `write`:
-
-```
-$ rg 'fn write\('
-src/printer.rs
-469:    fn write(&mut self, buf: &[u8]) {
-
-```
