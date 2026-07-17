@@ -1,11 +1,26 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "server": {
+    "port": 4096
+  },
   "instructions": [
     "CONTRIBUTING.md",
     "docs/guidelines.md",
     "CLAUDE.md",
     ".claude/*.md"
   ],
+  "lsp": true,
+  "mcp": {
+    "gh-grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app"
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
+    }
+  },
   "agent": {
     "deep-thinker": {
       "description": "Agent that uses high reasoning effort for complex problems",

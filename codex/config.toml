@@ -2,8 +2,8 @@ approval_policy = "on-request"
 model_reasoning_summary = "detailed"
 model_supports_reasoning_summaries = true
 model_verbosity = "medium"
-model = "gpt-5.5"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "high"
 
 sandbox_mode = "workspace-write"
 web_search = "live"
@@ -19,12 +19,8 @@ memories = true
 persistence = "save-all"
 
 [mcp_servers.chrome-devtools]
-args = [
-    "-y",
-    "chrome-devtools-mcp@latest"
-]
 command = "npx"
-enabled = true
+args = ["-y", "chrome-devtools-mcp@latest"]
 
 [mcp_servers.context7]
 url = "https://mcp.context7.com/mcp"
