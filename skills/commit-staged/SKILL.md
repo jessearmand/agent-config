@@ -13,8 +13,8 @@ Commit message guidelines (Conventional Commits):
 - Use the format `<type>[optional scope][!]: <description>`.
 - Use `feat` for new features and `fix` for bug fixes; other allowed types include `docs`, `refactor`, `chore`, `test`, `perf`, `ci`, `build`, and `style`.
 - Add a scope in parentheses when it clarifies the area affected, e.g. `feat(parser):`.
-- Keep the description and the body within 100 column width limit, and immediately after the colon and space.
-- Add a body when extra context is useful; start it one blank line after the description.
+- Keep the description within 100 column width limit, and immediately after the colon and space.
+- Add a body when extra context is useful; start it one blank line after the description; keep within 120 column width limit.
 - Add footers after another blank line using trailer style (e.g. `Refs: #123`).
 - Indicate breaking changes with `!` before the colon or a `BREAKING CHANGE:` footer.
 
