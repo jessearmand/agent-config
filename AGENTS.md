@@ -6,7 +6,7 @@
 - Config files may contain provider names, base URLs, model IDs, and env var names such as `OPENAI_API_KEY`; they must not contain the corresponding secret values.
 - Use `rg` for recursive search and filtering of plain text output.
 - Run checks from `skills/check/SKILL.md` for the files you touched. Because this repo has mixed config and skill files, use targeted validation: parse changed TOML/JSON/YAML, run Python checks for changed scripts, and run language-specific checks only when touching that language.
-- Use 4-space indentation unless the surrounding file uses another convention. Keep skills and scripts modular; split long workflows into focused files instead of growing one large file.
+- Keep skills and scripts modular; split long workflows into focused files instead of growing one large file.
 - Prefer existing repo conventions and tool-owned formatting. Defer to the language skills for tooling (`lang-typescript` for TypeScript/JavaScript, `uv`/`ruff`/`ty` for Python) instead of adding framework-specific style rules here.
 - Follow the project's existing linter and formatter. Do not add a second JS toolchain beside the one already configured.
 - `npm`, `bun`, and `pnpm` are managed by mise. Do not install those package managers outside mise.
