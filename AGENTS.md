@@ -7,7 +7,9 @@
 - Use `rg` for recursive search and filtering of plain text output.
 - Run checks from `skills/check/SKILL.md` for the files you touched. Because this repo has mixed config and skill files, use targeted validation: parse changed TOML/JSON/YAML, run Python checks for changed scripts, and run language-specific checks only when touching that language.
 - Use 4-space indentation unless the surrounding file uses another convention. Keep skills and scripts modular; split long workflows into focused files instead of growing one large file.
-- Prefer existing repo conventions and tool-owned formatting. Defer to the language skills for tooling (Biome for TypeScript/JavaScript, `uv`/`ruff`/`ty` for Python) instead of adding framework-specific style rules here.
+- Prefer existing repo conventions and tool-owned formatting. Defer to the language skills for tooling (`lang-typescript` for TypeScript/JavaScript, `uv`/`ruff`/`ty` for Python) instead of adding framework-specific style rules here.
+- Follow the project's existing linter and formatter. Do not add a second JS toolchain beside the one already configured.
+- `npm`, `bun`, and `pnpm` are managed by mise. Do not install those package managers outside mise.
 - Keep commits small and focused. Before committing, review `git diff --staged` for accidental local paths, generated state, and secrets.
 - Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project.
 - If you don't have write access to the current working directory, ask the user to create scratchpad directory with proper permission
@@ -16,7 +18,7 @@
 
 Cross-agent skills live under `skills/`, each with its own `SKILL.md`:
 
-- Languages: `lang-python`, `lang-rust`, `lang-typescript`, `lang-swift`
+- Languages: `lang-python`, `lang-rust`, `lang-typescript`, `lang-swift`. Toolchain details live in each skill's `SKILL.md` plus `references/` (TypeScript: Oxlint, Oxfmt, Biome).
 - Platform/build: `xcode-build`, `scanning-code`, `process-pdf`
 - Research/docs: `fetching-docs`, `grep-code-search`
 - Workflow: `check`, `commit-staged`
