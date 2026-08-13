@@ -40,3 +40,8 @@ description: Structural code search using an AST-based pattern tool (e.g., ast-g
 | Rust | `function_item` | `impl_item` | `?` operator |
 | TypeScript | `function_declaration` | `class_declaration` | `try_statement` |
 | Swift | `function_declaration` | `class_declaration` | `throws` |
+
+## CLI Notes
+
+- Simple shape queries: use `ast-grep run --pattern '...' --lang <lang> /path`.
+- `ast-grep scan --inline-rules '...'` is fine for quick one-off rules; for complex or reusable rules, write a YAML file and run `ast-grep scan --rule rules.yml /path`.

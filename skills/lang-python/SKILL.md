@@ -1,7 +1,6 @@
 ---
 name: lang-python
-description: Python development with modern linting and type checking. Use when writing or reviewing Python code.
-compatibility: Examples use uv+ruff+ty; adapt to pip/poetry and mypy/pyright as needed.
+description: Python development with modern linting and type checking. Use when writing or reviewing Python code. Examples use uv+ruff+ty; adapt to pip/poetry and mypy/pyright as needed.
 ---
 
 # Python Development

@@ -1,7 +1,6 @@
 ---
 name: xcode-build
-description: Build and test Apple platform projects using Xcode tooling. Use when working with Xcode projects, Swift packages, or Apple platform development.
-compatibility: Requires macOS with Xcode; examples assume `xcodebuild` and optional `xcbeautify`.
+description: Build and test Apple platform projects using Xcode tooling. Use when working with Xcode projects, Swift packages, or Apple platform development. Requires macOS with Xcode; examples assume `xcodebuild` and optional `xcbeautify`.
 ---
 
 # Xcode Build & Test

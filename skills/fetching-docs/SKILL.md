@@ -1,6 +1,6 @@
 ---
 name: fetching-docs
-description: Fetch library documentation and analyze Git repositories. Use Context7 MCP for library/API docs, gitingest for Git repos, grepgithub for cross-repo code search. Use when generating code, setup steps, or exploring unfamiliar codebases.
+description: Fetch library documentation and analyze Git repositories (Context7 for docs, gitingest for repos, and the `grep-code-search` skill for cross-repo code search). Use when generating code, setup steps, or exploring unfamiliar codebases.
 ---
 
 # Fetching Documentation
@@ -59,7 +59,11 @@ uv tool run gitingest https://github.com/user/repo --token $GITHUB_TOKEN
 
 ## grepgithub (Cross-Repository Code Search)
 
+> Prefer the dedicated `grep-code-search` skill for grep.app searches; this script is a legacy fallback.
+
 Use cross-repo search to find real-world usage patterns (configuration snippets, migration examples, gotchas).
+
+Script paths below are relative to the repo root. If this skill lives elsewhere, resolve `scripts/grepgithub.py` relative to this skill directory.
 
 - Be specific: search for exact imports, error messages, or function names.
 - Expect rate limits and result caps; refine queries iteratively.

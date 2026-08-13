@@ -46,7 +46,6 @@ Create `biome.json` in project root:
 
 ```json
 {
-    "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
     "linter": {
         "enabled": true,
         "rules": {
