@@ -14,6 +14,20 @@
 - Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project.
 - If you don't have write access to the current working directory, ask the user to create scratchpad directory with proper permission
 
+## Skill conventions
+
+- Skills in this repo are the canonical, harness-neutral source. Do not reference a specific
+  harness (Claude Code plugins or slash commands, Codex, opencode) inside `skills/`. Downstream
+  repos (e.g. `claude-code-rules`) mirror these skills and re-apply their harness-specific
+  overlays with their own sync script.
+- Refer to sibling skills by name (e.g. "follow the `check` skill"), never by repo-relative
+  path — deployed skill directories do not guarantee this repo's layout.
+- Split large guides into `references/` files that `SKILL.md` links, so agents load only what
+  they need (see `lang-swift/references/`, `lang-typescript/references/`).
+- When two skills need the same material, cross-link instead of duplicating (e.g. `lang-swift`
+  defers build/test workflow to `xcode-build`; `fetching-docs` defers cross-repo search to
+  `grep-code-search`).
+
 ## Generic skills
 
 Cross-agent skills live under `skills/`, each with its own `SKILL.md`:

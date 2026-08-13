@@ -33,7 +33,7 @@ Important:
 - EXCEPTION: when there are modified files from the process of checking, ONLY add those modified files
 
 Process:
-1. Run the repository's check workflow by following `skills/check/SKILL.md` and any project setup
+1. Run the repository's check workflow by following the `check` skill and any project setup
 2. After checks are resolved, proceed with reviewing the output of `git diff`
 3. Review modified files from the process of checking, ONLY add those modified files
 4. Run `git diff --staged`, then ONLY commit the staged changes
