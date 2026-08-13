@@ -19,6 +19,9 @@
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      },
       "enabled": true
     },
     "chrome-devtools": {
@@ -41,6 +44,14 @@
   },
   "plugin": [],
   "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1"
+      },
+      "models": {}
+    },
     "openai": {
       "options": {
         "reasoningEffort": "medium",
