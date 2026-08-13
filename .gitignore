@@ -1,6 +1,14 @@
 skills/.system/
 .firecrawl/
 
+# Local skill symlinks point at machine-specific paths; keep them out of commits.
+skills/agent-browser
+skills/find-skills
+skills/firecrawl
+
+# Scratchpad working directory (see AGENTS.md); never commit.
+scratchpad/
+
 # Local/private agent configuration overlays and credentials.
 *.local.json
 *.local.toml

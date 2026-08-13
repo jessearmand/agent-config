@@ -30,8 +30,8 @@ Process:
 5. Continue until all checks pass
 
 For Different Project Types:
-- **JavaScript/TypeScript**: `npm run check` or `yarn check`
-- **Python**: `black`, `isort`, `flake8`, `mypy`
-- **Rust**: `cargo check`, `cargo clippy`
-- **Go**: `go vet`, `golint`
-- **Swift**: `swift-format`, `swiftlint`
+- **JavaScript/TypeScript**: `npm run check` or `yarn run check` (see `lang-typescript` for Biome)
+- **Python**: see `lang-python` for `uv`/`ruff`/`ty`; fall back to the repo's own linter/type checker
+- **Rust**: `cargo check`, `cargo clippy` (see `lang-rust`)
+- **Go**: `go vet`, `staticcheck`
+- **Swift**: `swift-format`, `swiftlint` (see `lang-swift` / `xcode-build`)
