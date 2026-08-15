@@ -5,8 +5,8 @@ description: Build and test Apple platform projects using Xcode tooling. Use whe
 
 # Xcode Build & Test
 
-Build and test Apple platform projects using `xcodebuild`, always piped through `xcbeautify`
-when it is installed:
+Build and test Apple platform projects using `xcodebuild`, piped through `xcbeautify`
+for readable output (`brew install xcbeautify`; the examples assume it is installed):
 
 ```bash
 set -o pipefail && xcodebuild [flags] | xcbeautify
@@ -55,10 +55,11 @@ set -o pipefail && xcodebuild \
 ```
 
 Write the full log to a file when you need to inspect it — `| tail -N` drops the compile lines
-that tell you whether your file was actually rebuilt:
+that tell you whether your file was actually rebuilt. Tee the *raw* output: xcbeautify
+reformats lines, so patterns like `Compiling MyFile` won't match its formatted output.
 
 ```bash
-set -o pipefail && xcodebuild … | xcbeautify > build.log; echo "exit=$?"
+set -o pipefail && xcodebuild … 2>&1 | tee build.log | xcbeautify; echo "exit=$?"
 rg 'Compiling MyFile|error:' build.log
 ```
 

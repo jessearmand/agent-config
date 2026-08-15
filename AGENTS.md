@@ -12,14 +12,17 @@
 - `npm`, `bun`, and `pnpm` are managed by mise. Do not install those package managers outside mise.
 - Keep commits small and focused. Before committing, review `git diff --staged` for accidental local paths, generated state, and secrets.
 - Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project.
-- If you don't have write access to the current working directory, ask the user to create scratchpad directory with proper permission
+- If you don't have write access to the current working directory, ask the user to create a `scratchpad` directory with proper permission.
 
 ## Skill conventions
 
 - Skills in this repo are the canonical, harness-neutral source. Do not reference a specific
   harness (Claude Code plugins or slash commands, Codex, opencode) inside `skills/`. Downstream
   repos (e.g. `claude-code-rules`) mirror these skills and re-apply their harness-specific
-  overlays with their own sync script.
+  overlays with their own sync script. Two exceptions: reference material whose purpose is
+  per-harness setup (e.g. MCP client configuration tables) and skills that are inherently
+  harness-scoped (e.g. `hatch-pet`) may name harnesses; keep the core workflow guidance
+  harness-neutral.
 - Refer to sibling skills by name (e.g. "follow the `check` skill"), never by repo-relative
   path — deployed skill directories do not guarantee this repo's layout.
 - Split large guides into `references/` files that `SKILL.md` links, so agents load only what
@@ -36,3 +39,4 @@ Cross-agent skills live under `skills/`, each with its own `SKILL.md`:
 - Platform/build: `xcode-build`, `scanning-code`, `process-pdf`
 - Research/docs: `fetching-docs`, `grep-code-search`
 - Workflow: `check`, `commit-staged`
+- Generators: `hatch-pet` (harness-scoped: Codex-compatible pet spritesheets)
