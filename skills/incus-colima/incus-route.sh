@@ -33,9 +33,21 @@ GW=$(awk -v want="$LEASE_NAME" '
 [ -n "$GW" ] || { log "no lease for $LEASE_NAME; VM never started"; exit 0; }
 
 # --- 2. What route is installed right now? --------------------------------
-NET_SHORT=$(echo "$SUBNET" | sed 's/\.0$//')          # 10.181.0.0 -> 10.181.0
-CURRENT=$(netstat -rn -f inet 2>/dev/null | awk -v a="$NET_SHORT" -v b="$SUBNET/$PREFIX" \
-    '$1 == a || $1 == b { print $2; exit }')
+# Do NOT parse `netstat -rn`: macOS compresses trailing zero octets, printing
+# 10.181.0.0/24 as "10.181/24", so naive matching never fires and the daemon
+# re-adds the route on every tick. Ask the routing table directly instead.
+PROBE=$(echo "$SUBNET" | sed 's/\.[0-9]*$/.1/')       # 10.181.0.0 -> 10.181.0.1
+RT=$(route -n get -inet "$PROBE" 2>/dev/null)
+RT_DST=$(printf '%s\n' "$RT" | awk '/destination:/ { print $2; exit }')
+RT_GW=$(printf '%s\n' "$RT" | awk '/gateway:/ { print $2; exit }')
+
+# "destination: default" means there is no route for our subnet, just the
+# catch-all -- treat that as absent rather than as a match.
+if [ "${RT_DST:-default}" = "default" ]; then
+    CURRENT=""
+else
+    CURRENT="$RT_GW"
+fi
 
 # --- 3. Is the gateway on-link? -------------------------------------------
 # The vmnet bridge only exists while the VM runs. If it is gone, "route get"
