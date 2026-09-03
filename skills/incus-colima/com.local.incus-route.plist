@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.incus-route</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/sbin/incus-route.sh</string>
+    </array>
+
+    <!-- Run once at boot. The script exits quietly if the VM is not up yet. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Re-check every 60s: picks up the route after a later `colima start`,
+         and repairs it if the VM is recreated with a different address. -->
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/incus-route.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/incus-route.log</string>
+</dict>
+</plist>
