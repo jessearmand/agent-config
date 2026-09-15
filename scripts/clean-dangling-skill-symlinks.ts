@@ -8,9 +8,11 @@
  *
  * Default is dry-run. Pass --delete to unlink. Only dangling symlinks whose
  * target is under .agents/skills are removed; live links are left alone.
+ * lstat errors other than ENOENT fail closed (the link is not removed).
  *
  *   bun scripts/clean-dangling-skill-symlinks.ts
  *   bun scripts/clean-dangling-skill-symlinks.ts --delete
+ *   bun scripts/clean-dangling-skill-symlinks.ts --root /path --delete
  */
 import { $ } from "bun";
 import { lstat, readdir, readlink } from "node:fs/promises";
@@ -32,24 +34,45 @@ const SKIP_HOME_DIRS: Record<string, true> = {
 type Mode = "dry-run" | "delete";
 
 type DanglingLink = {
+  kind: "dangling";
   path: string;
   target: string;
   resolved: string;
 };
 
-function parseArgs(argv: string[]): { mode: Mode; help: boolean } {
+type InspectResult =
+  | DanglingLink
+  | { kind: "skip" }
+  | { kind: "blocked"; path: string; reason: string };
+
+function errnoCode(err: unknown): string | undefined {
+  if (typeof err === "object" && err !== null && "code" in err && typeof err.code === "string") {
+    return err.code;
+  }
+}
+
+function parseArgs(argv: string[]): { mode: Mode; help: boolean; root: string } {
   let mode: Mode = "dry-run";
   let help = false;
-  for (const arg of argv) {
+  let root = homedir();
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
     if (arg === "--delete") mode = "delete";
     else if (arg === "--dry-run" || arg === "-n") mode = "dry-run";
     else if (arg === "--help" || arg === "-h") help = true;
-    else {
+    else if (arg === "--root") {
+      const value = argv[++i];
+      if (!value) {
+        console.error("--root requires a directory");
+        process.exit(2);
+      }
+      root = value;
+    } else {
       console.error(`unknown argument: ${arg}`);
       process.exit(2);
     }
   }
-  return { mode, help };
+  return { mode, help, root };
 }
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -58,8 +81,11 @@ async function isDirectory(path: string): Promise<boolean> {
     if (st.isDirectory()) return true;
     if (!st.isSymbolicLink()) return false;
     const target = resolve(dirname(path), await readlink(path));
-    const targetSt = await lstat(target).catch(() => null);
-    return targetSt?.isDirectory() ?? false;
+    try {
+      return (await lstat(target)).isDirectory();
+    } catch {
+      return false;
+    }
   } catch {
     return false;
   }
@@ -105,28 +131,43 @@ async function listEntries(dir: string): Promise<string[]> {
     .map((name) => join(dir, name));
 }
 
-async function inspectLink(path: string): Promise<DanglingLink | null> {
+async function inspectLink(path: string): Promise<InspectResult> {
   let st;
   try {
     st = await lstat(path);
-  } catch {
-    return null;
+  } catch (err) {
+    if (errnoCode(err) === "ENOENT") return { kind: "skip" };
+    return { kind: "blocked", path, reason: `cannot lstat link: ${String(err)}` };
   }
-  if (!st.isSymbolicLink()) return null;
+  if (!st.isSymbolicLink()) return { kind: "skip" };
 
-  const target = await readlink(path);
+  let target: string;
+  try {
+    target = await readlink(path);
+  } catch (err) {
+    return { kind: "blocked", path, reason: `cannot read link: ${String(err)}` };
+  }
+
   const resolved = resolve(dirname(path), target);
   if (
     !target.replaceAll("\\", "/").includes(".agents/skills") &&
     !resolved.replaceAll("\\", "/").includes("/.agents/skills/")
   ) {
-    return null;
+    return { kind: "skip" };
   }
 
-  const targetSt = await lstat(resolved).catch(() => null);
-  if (targetSt) return null;
-
-  return { path, target, resolved };
+  try {
+    await lstat(resolved);
+    return { kind: "skip" };
+  } catch (err) {
+    if (errnoCode(err) === "ENOENT") return { kind: "dangling", path, target, resolved };
+    const code = errnoCode(err) ?? "unknown";
+    return {
+      kind: "blocked",
+      path,
+      reason: `cannot confirm target is absent (${code}): ${resolved}`,
+    };
+  }
 }
 
 async function unlink(path: string): Promise<void> {
@@ -137,49 +178,76 @@ async function unlink(path: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const { mode, help } = parseArgs(process.argv.slice(2));
+  const { mode, help, root } = parseArgs(process.argv.slice(2));
   if (help) {
-    await $`echo ${`Usage: bun scripts/clean-dangling-skill-symlinks.ts [--dry-run|-n] [--delete]
+    await $`echo ${`Usage: bun scripts/clean-dangling-skill-symlinks.ts [--dry-run|-n] [--delete] [--root <dir>]
 
 Search agent skill directories for dangling bunx-skills symlinks
 (target under .agents/skills, and that target does not exist).
 
-  --dry-run, -n   print matches only (default)
-  --delete        unlink matches with bun shell rm
-  --help, -h      show this help
+  --dry-run, -n     print matches only (default)
+  --delete          unlink matches with bun shell rm
+  --root <dir>      scan this directory instead of the home directory
+  --help, -h        show this help
 `}`;
     return;
   }
 
-  const home = homedir();
-  const dirs = await collectSkillDirs(home);
+  const dirs = await collectSkillDirs(root);
   const matches: DanglingLink[] = [];
+  const blocked: { path: string; reason: string }[] = [];
 
   for (const dir of dirs) {
     for (const entry of await listEntries(dir)) {
-      const hit = await inspectLink(entry);
-      if (hit) matches.push(hit);
+      const result = await inspectLink(entry);
+      if (result.kind === "dangling") matches.push(result);
+      else if (result.kind === "blocked") blocked.push(result);
     }
+  }
+
+  for (const item of blocked) {
+    console.error(`blocked: ${item.path}: ${item.reason}`);
   }
 
   if (matches.length === 0) {
     await $`echo ${"No dangling bunx-skills symlinks found."}`;
+    if (blocked.length > 0) process.exit(1);
     return;
   }
 
   const verb = mode === "delete" ? "Removing" : "Would remove";
   await $`echo ${`${verb} ${matches.length} dangling symlink(s):`}`;
 
+  let removed = 0;
   for (const hit of matches) {
-    await $`echo ${`  ${hit.path} -> ${hit.target}`}`;
-    if (mode === "delete") await unlink(hit.path);
+    if (mode === "dry-run") {
+      await $`echo ${`  ${hit.path} -> ${hit.target}`}`;
+      continue;
+    }
+
+    const again = await inspectLink(hit.path);
+    if (again.kind !== "dangling") {
+      if (again.kind === "blocked") {
+        console.error(`blocked before unlink: ${again.path}: ${again.reason}`);
+        blocked.push(again);
+      } else {
+        console.error(`skipped before unlink (no longer dangling): ${hit.path}`);
+      }
+      continue;
+    }
+
+    await $`echo ${`  ${again.path} -> ${again.target}`}`;
+    await unlink(again.path);
+    removed++;
   }
 
   if (mode === "dry-run") {
     await $`echo ${"\nDry-run only. Re-run with --delete to unlink."}`;
   } else {
-    await $`echo ${`\nRemoved ${matches.length} symlink(s).`}`;
+    await $`echo ${`\nRemoved ${removed} symlink(s).`}`;
   }
+
+  if (blocked.length > 0) process.exit(1);
 }
 
 await main();
