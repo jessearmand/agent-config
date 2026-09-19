@@ -44,13 +44,21 @@ function isVerdict(value: unknown): value is Verdict {
     );
 }
 
-async function runGuard(request: object): Promise<Verdict | undefined> {
+type GuardResult = {
+    verdict?: Verdict;
+    stderr: string;
+    code: number | null;
+};
+
+async function runGuard(request: object): Promise<GuardResult> {
     try {
         const proc = Bun.spawn([PYTHON, GUARD], {
             stdin: "pipe",
             stdout: "pipe",
             stderr: "pipe",
-            env: process.env,
+            // Jev only explains its fallbacks on stderr when debugging is on;
+            // an explicit user setting still wins.
+            env: { HOOK_JEV_DEBUG: "1", ...process.env },
         });
         const timer = setTimeout(() => proc.kill(), TIMEOUT_MS);
         timer.unref?.();
@@ -58,20 +66,27 @@ async function runGuard(request: object): Promise<Verdict | undefined> {
             proc.stdin.write(JSON.stringify(request));
             proc.stdin.end();
 
-            const [stdout, , code] = await Promise.all([
+            const [stdout, stderr, code] = await Promise.all([
                 new Response(proc.stdout).text(),
                 new Response(proc.stderr).text(),
                 proc.exited,
             ]);
-            if (code !== 0) return undefined;
+            if (code !== 0) return { stderr, code };
 
-            const parsed: unknown = JSON.parse(stdout);
-            return isVerdict(parsed) ? parsed : undefined;
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(stdout);
+            } catch {
+                return { stderr, code };
+            }
+            return isVerdict(parsed)
+                ? { verdict: parsed, stderr, code }
+                : { stderr, code };
         } finally {
             clearTimeout(timer);
         }
     } catch {
-        return undefined;
+        return { stderr: "", code: null };
     }
 }
 
@@ -98,12 +113,18 @@ export default function guardHooks(pi: ExtensionAPI) {
             return;
         }
 
-        const verdict = await runGuard({
+        const { verdict, stderr, code } = await runGuard({
             tool: event.toolName,
             input: event.input,
             cwd: ctx.cwd,
             session_id: sessionId(ctx),
         });
+        const diagnostics = stderr.trim();
+        if (diagnostics) {
+            pi.logger[verdict ? "debug" : "warn"](
+                `guard-hooks stderr (exit ${code}): ${diagnostics.slice(0, 2000)}`,
+            );
+        }
         if (!verdict) {
             if (!warnedUnavailable) {
                 warnedUnavailable = true;

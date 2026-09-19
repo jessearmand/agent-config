@@ -36,7 +36,11 @@ The following environment variables configure the adapter:
 
 The Python policies also use the `HOOK_JEV_*`, `SECRETS_GUARD_*`, `FILE_PROTECTION_*`, and `BASH_RISK_JUDGE_*` variables documented in their source files. Set `HOOK_JEV_ENABLE=1` to enable Jev. If the API key comes from fnox, set `HOOK_JEV_FNOX_CONFIG` to the fnox configuration path.
 
-Audit records are written to `~/.omp/hooks-logs/`.
+Audit records are written to `~/.omp/hooks-logs/`. Anything the guard prints
+on stderr is forwarded to the omp log (`~/.omp/logs/`): at `debug` when a
+verdict was produced (Jev fallback reasons; the extension sets
+`HOOK_JEV_DEBUG=1` unless you set it yourself), at `warn` when the guard
+crashed, followed by the one-time "unavailable" warning.
 
 ## Uninstall the extension
 
