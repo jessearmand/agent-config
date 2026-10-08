@@ -18,6 +18,8 @@ os.environ.setdefault(
 )
 
 import bash_risk_judge  # noqa: E402
+import config_guard  # noqa: E402
+import dangerous_commands  # noqa: E402
 import file_protection  # noqa: E402
 import rm_rf_guard  # noqa: E402
 import secrets_guard  # noqa: E402
@@ -199,7 +201,7 @@ def judge(request: dict) -> dict:
         return _verdict(None)
 
     first_ask: Decision | None = None
-    for hook in (rm_rf_guard, secrets_guard, file_protection):
+    for hook in (rm_rf_guard, dangerous_commands, secrets_guard, config_guard, file_protection):
         for payload in payloads:
             try:
                 result = hook.run(payload)

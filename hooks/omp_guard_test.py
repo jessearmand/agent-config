@@ -32,6 +32,11 @@ _GUARD_ENV = (
     "AI_GATEWAY_API_KEY",
     "BASH_RISK_JUDGE_ASK_THRESHOLD",
     "BASH_RISK_JUDGE_DISABLE",
+    "CONFIG_GUARD_ASK",
+    "CONFIG_GUARD_DISABLE",
+    "DANGEROUS_COMMANDS_ASK",
+    "DANGEROUS_COMMANDS_DISABLE",
+    "DANGEROUS_COMMANDS_LEVEL",
     "FILE_PROTECTION_ASK",
     "FILE_PROTECTION_DISABLE",
     "HOOK_JEV_ENABLE",
@@ -175,6 +180,24 @@ def main() -> int:
                     "secret write",
                 ),
                 (
+                    _request("bash", {"command": "git push --force origin main"}),
+                    "deny",
+                    "dangerous-commands",
+                    "force push",
+                ),
+                (
+                    _request("bash", {"command": "echo '{}' > .mcp.json"}),
+                    "deny",
+                    "config-guard",
+                    "shell write to MCP config",
+                ),
+                (
+                    _request("write", {"path": "~/.claude/settings.json", "content": "{}"}),
+                    "deny",
+                    "config-guard",
+                    "settings write",
+                ),
+                (
                     _request("read", {"path": "src/main.rs:10-20"}),
                     "defer",
                     "",
@@ -243,7 +266,10 @@ def main() -> int:
                 old_path = os.environ.get("PATH", "")
                 os.environ["PATH"] = bindir + os.pathsep + old_path
                 try:
-                    result = judge(_request("bash", {"command": "git clean -xdf"}))
+                    # Only the model can judge this one: no deterministic rule covers it.
+                    result = judge(
+                        _request("bash", {"command": "python3 -c 'import shutil; shutil.rmtree(\"data\")'"})
+                    )
                 finally:
                     os.environ["PATH"] = old_path
             _check(
