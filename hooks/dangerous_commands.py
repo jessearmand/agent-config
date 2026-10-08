@@ -50,6 +50,7 @@ from hook_protocol import (  # noqa: E402
     Decision,
     emit,
     env_flag,
+    for_permission_mode,
     log_event,
     read_input,
     tool_input,
@@ -168,7 +169,8 @@ def run(data: dict) -> Decision | None:
 
 
 def main() -> None:
-    emit(run(read_input(HOOK_NAME)))
+    data = read_input(HOOK_NAME)
+    emit(for_permission_mode(run(data), data))
 
 
 if __name__ == "__main__":

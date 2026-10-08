@@ -194,6 +194,13 @@ def main() -> int:
         _check(_decision(strict) == "ask", "strict level adds git-abort (ask)", failures)
         _check(_run_hook("git push -f", project, {"DANGEROUS_COMMANDS_DISABLE": "1"}) == {},
                "DANGEROUS_COMMANDS_DISABLE turns it off", failures)
+        for mode, expected in (("default", "ask"), ("acceptEdits", "ask"), ("bypassPermissions", "deny"),
+                               ("dontAsk", "deny")):
+            payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": "chmod 666 notes.txt"},
+                                  "cwd": project, "permission_mode": mode})
+            out = subprocess.run([sys.executable, _HOOK], input=payload, capture_output=True, text=True,
+                                 check=False).stdout
+            _check(_decision(json.loads(out or "{}")) == expected, f"ask under {mode} -> {expected}", failures)
         reason = _run_hook("bash -c 'git push -f'", project)["hookSpecificOutput"]["permissionDecisionReason"]
         _check("reached via: bash -c" in reason, "reason names how the command was reached", failures)
 

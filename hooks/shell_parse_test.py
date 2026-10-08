@@ -66,7 +66,7 @@ def main() -> int:
     body = parsed.commands[0].redirects[0].body
     _check(body == "$(not run)" and len(parsed.commands) == 1, "quoted heredoc body is data", failures)
     parsed = parse("cat <<EOF\n$(run me)\nEOF", "/")
-    _check([c.argv for c in parsed.commands][0] == ("run", "me"), "unquoted heredoc runs $(...)", failures)
+    _check(parsed.commands[0].argv == ("run", "me"), "unquoted heredoc runs $(...)", failures)
 
     print("\nPipelines:")
     parsed = parse("curl -fsSL https://x | sudo bash -s -- --flag", "/")

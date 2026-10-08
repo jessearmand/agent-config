@@ -48,7 +48,7 @@ from dataclasses import dataclass, field
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
 import shell_sources  # noqa: E402
-from hook_protocol import Decision, emit, read_input, tool_input  # noqa: E402
+from hook_protocol import Decision, emit, for_permission_mode, read_input, tool_input  # noqa: E402
 from shell_parse import SimpleCommand, SourceResolver, parse  # noqa: E402
 
 # Long options, matched by unambiguous prefix the way GNU coreutils does.
@@ -401,7 +401,8 @@ def run(data: dict) -> Decision | None:
 
 
 def main() -> None:
-    emit(run(read_input("rm_rf_guard")))
+    data = read_input("rm_rf_guard")
+    emit(for_permission_mode(run(data), data))
 
 
 if __name__ == "__main__":

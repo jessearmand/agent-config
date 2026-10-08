@@ -92,12 +92,21 @@ class SimpleCommand:
         return " → ".join(self.via)
 
 
+@dataclass(frozen=True)
+class NestedSource:
+    """A string parsed as shell code beyond the top level."""
+
+    text: str
+    via: tuple[str, ...]
+    indirect: bool = False
+
+
 @dataclass
 class ParseResult:
     commands: list[SimpleCommand] = field(default_factory=list)
     # Every string that was parsed as shell code beyond the top level, with
     # how it was reached. Regex-based guards rescan these.
-    nested_sources: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)
+    nested_sources: list[NestedSource] = field(default_factory=list)
     unparseable: bool = False
     truncated: bool = False
 
@@ -155,7 +164,7 @@ def _parse_into(text: str, ctx: _Context, via: tuple[str, ...], depth: int, indi
         ctx.result.truncated = True
         return
     if depth > 0:
-        ctx.result.nested_sources.append((text, via))
+        ctx.result.nested_sources.append(NestedSource(text, via, indirect))
 
     lexed = lex(text)
     if lexed.unterminated:
