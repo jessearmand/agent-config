@@ -227,7 +227,12 @@ def judge(request: dict) -> dict:
         return _verdict(first_ask)
 
     if tool == "bash":
-        return _verdict(bash_risk_judge.run(payloads[0]))
+        judged = dict(payloads[0])
+        prompt = request.get("user_prompt")
+        if isinstance(prompt, str) and prompt.strip():
+            # The host's latest user message: task context for the model judge.
+            judged["user_prompt"] = prompt
+        return _verdict(bash_risk_judge.run(judged))
     return _verdict(None)
 
 

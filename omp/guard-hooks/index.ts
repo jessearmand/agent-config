@@ -57,8 +57,15 @@ async function runGuard(request: object): Promise<GuardResult> {
             stdout: "pipe",
             stderr: "pipe",
             // Jev only explains its fallbacks on stderr when debugging is on;
-            // an explicit user setting still wins.
-            env: { HOOK_JEV_DEBUG: "1", ...process.env },
+            // an explicit user setting still wins. This extension is live
+            // guard code too, so config_guard asks before anything edits it.
+            env: {
+                HOOK_JEV_DEBUG: "1",
+                ...process.env,
+                CONFIG_GUARD_LIVE_DIRS: [process.env.CONFIG_GUARD_LIVE_DIRS, PACKAGE_DIR]
+                    .filter(Boolean)
+                    .join(path.delimiter),
+            },
         });
         const timer = setTimeout(() => proc.kill(), TIMEOUT_MS);
         timer.unref?.();

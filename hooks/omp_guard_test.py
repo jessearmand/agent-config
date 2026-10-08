@@ -278,6 +278,22 @@ def main() -> int:
                 failures,
             )
 
+        with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as bindir:
+            state = os.path.join(bindir, "state.txt")
+            _shim(bindir, f"cat > '{state}'; printf '%s' '{SUCCESS_JSON}'")
+            with _environment({"AI_GATEWAY_API_KEY": "test-key", "HOOK_JEV_ENABLE": "1"}):
+                old_path = os.environ.get("PATH", "")
+                os.environ["PATH"] = bindir + os.pathsep + old_path
+                try:
+                    request = _request("bash", {"command": "sqlite3 app.db .tables"})
+                    request["user_prompt"] = "Rename the CLI flag --out to --output"
+                    judge(request)
+                finally:
+                    os.environ["PATH"] = old_path
+            with open(state, encoding="utf-8") as handle:
+                sent = handle.read()
+            _check("Rename the CLI flag" in sent, "host user_prompt reaches the judge", failures)
+
     print("\nProcess protocol:")
     denied = _run(_request("bash", {"command": "rm -rf build"}))
     denied_json = json.loads(denied.stdout)

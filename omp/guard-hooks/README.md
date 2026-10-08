@@ -1,6 +1,8 @@
 # Guard hooks for omp
 
-This extension applies the shared Python guard policies to omp tool calls. It blocks recursive forced removals, secret access, and generated-file edits. The optional Jev policy asks for confirmation when a command might be destructive or exfiltrate data.
+This extension applies the shared Python guard policies to omp tool calls. It blocks recursive forced removals, dangerous commands (destructive git, downloads piped into a shell, disk writes, publishing, cloud and database deletes), secret access, edits to agent configuration and persistence locations, and generated-file edits. The first deny wins; otherwise the first ask is shown. The optional Jev policy asks for confirmation when a command might be destructive, exfiltrate data, set up persistence, weaken a control, run downloaded code, or stray from the user's request.
+
+Commands are parsed with the same bash-subset parser the Claude Code hooks use, so wrappers (`sudo -u`, `timeout`), re-parsed strings (`bash -c`, `eval`, `ssh host`), heredocs fed to a shell and interpreter one-liners are all checked. Scripts, `npm run` scripts and Makefile recipes a command executes are read too; a match found only there asks rather than denies.
 
 ## Install the extension
 
@@ -34,7 +36,7 @@ The following environment variables configure the adapter:
 - `OMP_GUARD_SCRIPT` overrides the path to `omp_guard.py`.
 - `OMP_GUARD_TIMEOUT_MS` sets the Python process timeout in milliseconds. The default is `10000`.
 
-The Python policies also use the `HOOK_JEV_*`, `SECRETS_GUARD_*`, `FILE_PROTECTION_*`, and `BASH_RISK_JUDGE_*` variables documented in their source files. Set `HOOK_JEV_ENABLE=1` to enable Jev. If the API key comes from fnox, set `HOOK_JEV_FNOX_CONFIG` to the fnox configuration path.
+The Python policies also use the `HOOK_JEV_*`, `SECRETS_GUARD_*`, `DANGEROUS_COMMANDS_*`, `CONFIG_GUARD_*`, `FILE_PROTECTION_*`, and `BASH_RISK_JUDGE_*` variables documented in their source files. `config_guard` treats this checkout's `hooks/` directory and this extension's directory as live guard code and asks before writes there. Set `HOOK_JEV_ENABLE=1` to enable Jev. If the API key comes from fnox, set `HOOK_JEV_FNOX_CONFIG` to the fnox configuration path.
 
 Audit records are written to `~/.omp/hooks-logs/`. Anything the guard prints
 on stderr is forwarded to the omp log (`~/.omp/logs/`): at `debug` when a
