@@ -27,9 +27,11 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from shell_interpreters import awk_commands, inline_programs, shell_strings
 from shell_lexer import HEREDOC_OPERATORS, REDIRECT_OPERATORS, Operator, Word, lex
 from shell_wrappers import (
     PREFIX_WRAPPERS,
@@ -114,9 +116,10 @@ def program_name(token: str) -> str:
     return token.rsplit("/", 1)[-1]
 
 
-# A source resolver maps (command, cwd) to program text it executes from disk,
-# e.g. the body of `./deploy.sh` or the `build` script in package.json.
-SourceResolver = Callable[[SimpleCommand, str], "list[tuple[str, str]]"]
+# A source resolver maps (command, cwd, files written earlier in the same
+# command line) to program text it executes from disk, e.g. the body of
+# `./deploy.sh` or the `build` script in package.json.
+SourceResolver = Callable[[SimpleCommand, str, "dict[str, str]"], "list[tuple[str, str]]"]
 
 
 @dataclass
@@ -126,6 +129,9 @@ class _Context:
     sources: SourceResolver | None
     pipeline_counter: list[int] = field(default_factory=lambda: [0])
     variables: dict[str, str] = field(default_factory=dict)
+    # Files this command line writes from literal text before running them:
+    # `cat > x.sh <<'EOF' ... EOF; bash x.sh`. Absolute path -> content.
+    written_files: dict[str, str] = field(default_factory=dict)
 
     def next_pipeline(self) -> int:
         self.pipeline_counter[0] += 1
@@ -264,7 +270,23 @@ def _emit(argv: list[str], redirects: tuple[Redirect, ...], ctx: _Context, via: 
     command = SimpleCommand(tuple(argv), redirects, via, wrappers, dynamic_head, indirect,
                             pipeline, stage)
     ctx.result.commands.append(command)
+    _record_written_file(command, ctx)
     _parse_payloads(command, ctx, depth)
+
+
+def _record_written_file(command: SimpleCommand, ctx: _Context) -> None:
+    """Remember literal text written to a file, so running it later is judged by its body."""
+    body = next((r.body for r in command.redirects if r.op in HEREDOC_OPERATORS and r.body is not None), None)
+    if body is None and command.name in ("echo", "printf") and not command.dynamic_head:
+        body = _echoed_text(command)
+    if body is None:
+        return
+    targets = [r.target for r in command.redirects if r.op in (">", ">>", ">|") and not r.dynamic]
+    if command.name == "tee":
+        targets += [arg for arg in command.args if not arg.startswith("-")]
+    for target in targets:
+        path = os.path.normpath(os.path.join(ctx.cwd, os.path.expanduser(target)))
+        ctx.written_files[path] = body
 
 
 def _unwrap_once(name: str, argv: list[str], ctx: _Context, via: tuple[str, ...], depth: int,
@@ -379,6 +401,13 @@ def _parse_payloads(command: SimpleCommand, ctx: _Context, depth: int) -> None:
 
     if name in SHELLS:
         _shell_payload(command, args, ctx, nested)
+    elif inline_programs(name, command.args, command.redirects):
+        for program in inline_programs(name, command.args, command.redirects):
+            for literal in shell_strings(program):
+                nested(literal, f"{name} string")
+    elif awk_commands(name, command.args):
+        for literal in awk_commands(name, command.args):
+            nested(literal, f"{name} system()")
     elif name == "eval":
         if args:
             nested(" ".join(args), "eval")
@@ -406,8 +435,9 @@ def _parse_payloads(command: SimpleCommand, ctx: _Context, depth: int) -> None:
             nested(" ".join(inner), "parallel")
 
     if ctx.sources is not None and depth < MAX_DEPTH:
-        for text, label in ctx.sources(command, ctx.cwd):
-            nested(text, label, from_file=True)
+        for text, label in ctx.sources(command, ctx.cwd, ctx.written_files):
+            # A file written earlier in this same command line was typed by the agent.
+            nested(text, label, from_file=not label.startswith("written "))
 
 
 def _long_command(args: list[str]) -> str | None:
@@ -420,7 +450,7 @@ def _long_command(args: list[str]) -> str | None:
 
 
 def _shell_payload(command: SimpleCommand, args: list[str], ctx: _Context,
-                   nested: Callable[[str, str], None]) -> None:
+                   nested: Callable[..., None]) -> None:
     """`bash -c STR`, `bash <<EOF`, `bash <<< STR`, `echo STR | bash`."""
     index = 0
     runs_string = False
@@ -443,7 +473,7 @@ def _shell_payload(command: SimpleCommand, args: list[str], ctx: _Context,
     positionals = args[index:]
     if runs_string:
         if positionals:
-            nested(positionals[0], f"{command.name} -c")
+            nested(_bind_positionals(positionals[0], positionals[1:]), f"{command.name} -c")
         return
     if positionals and positionals[0] != "-":
         return  # a script file; shell_sources resolves it when enabled
@@ -453,10 +483,39 @@ def _shell_payload(command: SimpleCommand, args: list[str], ctx: _Context,
         elif redirect.op == "<<<":
             nested(redirect.target, f"{command.name} <<<")
     feeder = ctx.result.previous_stage(command)
-    if feeder is not None and feeder.name in ("echo", "printf") and not feeder.dynamic_head:
+    if feeder is None or feeder.dynamic_head:
+        return
+    if feeder.name in ("echo", "printf"):
         text = _echoed_text(feeder)
         if text:
             nested(text, f"{feeder.name} | {command.name}")
+    elif feeder.name == "cat" and len(feeder.args) == 1 and ctx.sources is not None:
+        # `cat script.sh | bash` runs the file just like `bash script.sh`.
+        as_script = SimpleCommand((command.argv[0], feeder.args[0]), indirect=command.indirect)
+        for text, label in ctx.sources(as_script, ctx.cwd, ctx.written_files):
+            nested(text, label, not label.startswith("written "))
+
+
+_POSITIONAL = re.compile(r'"\$\{?(\d)\}?"|\$\{(\d+)\}|\$(\d)|"\$[@*]"|\$[@*]')
+
+
+def _bind_positionals(script: str, arguments: list[str]) -> str:
+    """`bash -c 'rm -rf "$1"' _ ~` runs `rm -rf ~`: substitute literal arguments.
+
+    arguments[0] is $0; the rest are $1, $2, ... An unset parameter is left
+    as written, which the guards treat as an unknown value.
+    """
+    if not arguments or "$" not in script:
+        return script
+
+    def replace(match: re.Match[str]) -> str:
+        number = match.group(1) or match.group(2) or match.group(3)
+        if number is None:
+            return " ".join(shlex.quote(arg) for arg in arguments[1:])
+        index = int(number)
+        return shlex.quote(arguments[index]) if index < len(arguments) else match.group(0)
+
+    return _POSITIONAL.sub(replace, script)
 
 
 def _echoed_text(command: SimpleCommand) -> str:

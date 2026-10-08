@@ -43,15 +43,21 @@ _MAKE_RULE = re.compile(r"^([^\s:#=][^:=]*?)\s*::?(?!=)\s*(.*)$")
 _MAX_MAKE_TARGETS = 8
 
 
-def resolve(command: SimpleCommand, cwd: str) -> list[tuple[str, str]]:
-    """(program text, label) pairs that `command` would execute from disk."""
+def resolve(
+    command: SimpleCommand, cwd: str, written: dict[str, str] | None = None
+) -> list[tuple[str, str]]:
+    """(program text, label) pairs that `command` would execute from disk.
+
+    `written` holds files the same command line wrote from literal text
+    before running them; they are used in place of what is on disk.
+    """
     try:
-        return _resolve(command, cwd)
+        return _resolve(command, cwd, written or {})
     except (OSError, ValueError, RecursionError):
         return []
 
 
-def _resolve(command: SimpleCommand, cwd: str) -> list[tuple[str, str]]:
+def _resolve(command: SimpleCommand, cwd: str, written: dict[str, str]) -> list[tuple[str, str]]:
     if not command.argv or command.dynamic_head:
         return []
     name, args = command.name, list(command.args)
@@ -59,11 +65,11 @@ def _resolve(command: SimpleCommand, cwd: str) -> list[tuple[str, str]]:
 
     if name in SHELLS:
         script = _shell_script_argument(args)
-        return _script(script, cwd, require_shebang=False) if script else []
+        return _script(script, cwd, written, require_shebang=False) if script else []
     if name in ("source", "."):
-        return _script(args[0], cwd, require_shebang=False) if args else []
+        return _script(args[0], cwd, written, require_shebang=False) if args else []
     if "/" in head:
-        return _script(head, cwd, require_shebang=True)
+        return _script(head, cwd, written, require_shebang=True)
     if name in _PACKAGE_RUNNERS:
         return _package_script(name, args, cwd)
     if name in ("make", "gmake"):
@@ -113,8 +119,12 @@ def _absolute(path: str, cwd: str) -> str:
     return os.path.normpath(expanded if os.path.isabs(expanded) else os.path.join(cwd, expanded))
 
 
-def _script(path: str, cwd: str, require_shebang: bool) -> list[tuple[str, str]]:
-    text = _read_text(_absolute(path, cwd))
+def _script(path: str, cwd: str, written: dict[str, str], require_shebang: bool) -> list[tuple[str, str]]:
+    absolute = _absolute(path, cwd)
+    if absolute in written:
+        # Written by this same command line: its author is the agent, right now.
+        return [(written[absolute], f"written {path}")]
+    text = _read_text(absolute)
     if text is None:
         return []
     first_line = text.split("\n", 1)[0]
