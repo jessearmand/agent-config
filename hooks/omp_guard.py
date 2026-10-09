@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adapt omp tool calls to the shared deterministic and Jev guard policies."""
+"""Adapt omp and pi tool calls to the shared deterministic and Jev guard policies."""
 
 from __future__ import annotations
 
@@ -30,8 +30,11 @@ HANDLED_TOOLS = (
     "read",
     "write",
     "edit",
+    "multiedit",
     "grep",
     "glob",
+    "find",
+    "ls",
     "ast_edit",
     "apply_patch",
 )
@@ -143,7 +146,8 @@ def normalize(
         tool_name = "Read" if tool == "read" else "Write"
         return [_payload(tool_name, {"file_path": normalized}, cwd, session_id)]
 
-    if tool in ("grep", "glob"):
+    if tool in ("grep", "glob", "find", "ls"):
+        # pi names its file-listing tools find/ls; omp calls the same thing glob.
         tool_name = "Grep" if tool == "grep" else "Glob"
         return [
             _payload(tool_name, {"path": path}, cwd, session_id)
@@ -151,7 +155,7 @@ def normalize(
             if not _URL_SCHEME.match(path)
         ]
 
-    if tool in ("edit", "apply_patch"):
+    if tool in ("edit", "multiedit", "apply_patch"):
         return [
             _payload("Edit", {"file_path": path}, cwd, session_id)
             for path in edit_paths(inputs)

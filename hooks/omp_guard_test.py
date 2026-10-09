@@ -198,6 +198,24 @@ def main() -> int:
                     "settings write",
                 ),
                 (
+                    _request("multiedit", {"path": ".env", "edits": []}),
+                    "deny",
+                    "secrets-guard",
+                    "pi multiedit of a secret",
+                ),
+                (
+                    _request("edit", {"file": "~/.claude/settings.json", "oldText": "a", "newText": "b"}),
+                    "deny",
+                    "config-guard",
+                    "pi edit with a `file` key",
+                ),
+                (
+                    _request("find", {"pattern": "*.rs", "path": "src"}),
+                    "defer",
+                    "",
+                    "pi find tool",
+                ),
+                (
                     _request("read", {"path": "src/main.rs:10-20"}),
                     "defer",
                     "",

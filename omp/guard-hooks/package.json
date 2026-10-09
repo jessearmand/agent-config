@@ -3,8 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "rm -rf, secrets, generated-file, and Jev risk guards for omp tool calls",
+  "description": "rm -rf, dangerous-command, secrets, config, generated-file, and Jev risk guards for omp and pi tool calls",
   "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "omp-plugin"
+  ],
+  "pi": {
     "extensions": [
       "./index.ts"
     ]
