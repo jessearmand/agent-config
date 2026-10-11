@@ -155,7 +155,7 @@ def main() -> int:
             cases = (
                 (
                     _request("bash", {"command": "rm -rf build"}),
-                    "deny",
+                    "ask",
                     "rm-rf-guard",
                     "rm -rf",
                 ),
@@ -264,7 +264,7 @@ def main() -> int:
                 old_path = os.environ.get("PATH", "")
                 os.environ["PATH"] = bindir + os.pathsep + old_path
                 try:
-                    result = judge(_request("bash", {"command": "rm -rf build"}))
+                    result = judge(_request("bash", {"command": "git push --force origin main"}))
                 finally:
                     os.environ["PATH"] = old_path
             _check(
@@ -313,7 +313,7 @@ def main() -> int:
             _check("Rename the CLI flag" in sent, "host user_prompt reaches the judge", failures)
 
     print("\nProcess protocol:")
-    denied = _run(_request("bash", {"command": "rm -rf build"}))
+    denied = _run(_request("bash", {"command": "git push --force origin main"}))
     denied_json = json.loads(denied.stdout)
     _check(
         denied.returncode == 0 and denied_json["decision"] == "deny",
