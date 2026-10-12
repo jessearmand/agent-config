@@ -39,7 +39,7 @@ The following environment variables configure the adapter:
 - `OMP_GUARD_SCRIPT` overrides the path to `omp_guard.py`.
 - `OMP_GUARD_TIMEOUT_MS` sets the Python process timeout in milliseconds. The default is `10000`.
 
-The Python policies also use the `HOOK_JEV_*`, `SECRETS_GUARD_*`, `DANGEROUS_COMMANDS_*`, `CONFIG_GUARD_*`, `FILE_PROTECTION_*`, and `BASH_RISK_JUDGE_*` variables documented in their source files. `config_guard` treats this checkout's `hooks/` directory and this extension's directory as live guard code and asks before writes there. Set `HOOK_JEV_ENABLE=1` to enable Jev. If the API key comes from fnox, set `HOOK_JEV_FNOX_CONFIG` to the fnox configuration path.
+The Python policies also use the `HOOK_JEV_*`, `SECRETS_GUARD_*`, `DANGEROUS_COMMANDS_*`, `CONFIG_GUARD_*`, `FILE_PROTECTION_*`, and `BASH_RISK_JUDGE_*` variables documented in their source files. `config_guard` treats this checkout's `hooks/` directory and this extension's directory as live guard code and asks before writes there. Set `HOOK_JEV_ENABLE=1` to enable the model judge (Jev by default; `HOOK_JEV_MODEL=openai/gpt-6-luna-decisions` or any other AI Gateway decision model also works). If the API key comes from fnox, set `HOOK_JEV_FNOX_CONFIG` to the fnox configuration path.
 
 Audit records are written to `~/.omp/hooks-logs/`. Anything the guard prints
 on stderr is forwarded to the omp log (`~/.omp/logs/`): at `debug` when a
