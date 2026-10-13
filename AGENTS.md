@@ -14,6 +14,41 @@
 - Do not use `/tmp` as a scratchpad, create a `scratchpad` directory in the current working directory of a project.
 - If you don't have write access to the current working directory, ask the user to create a `scratchpad` directory with proper permission.
 
+## Code Review Rules
+
+### Review the declared scope and affected contracts
+
+- Establish the PR's base and head, intended behavior, supported platforms, and
+  explicit exclusions from its description before reviewing. If scope is unclear,
+  state the assumption and the clarification needed instead of silently expanding it.
+- Review changed behavior and affected callers and dependencies. Report concrete
+  correctness or security defects caused by the PR even when no custom rule names
+  them. Keep unrelated pre-existing issues, new feature coverage, and architectural
+  proposals as non-blocking follow-up work.
+
+### Return one actionable batch of findings
+
+- Complete the scoped review before returning one consolidated list. Group duplicate
+  symptoms by root cause and check existing threads before adding another finding.
+- For each finding, give its priority, location, violated contract or applicable
+  rule, triggering conditions, impact, occurrence likelihood with assumptions, and
+  a reproduction or source trace. Separate demonstrated failures from uncertainty;
+  do not invent probability estimates or infer safety from passing tests alone.
+- Describe the smallest safe correction and an acceptance check with a failing case
+  and a legitimate control. Keep formatting and mechanical checks in existing CI.
+
+### Keep follow-up reviews bounded
+
+- After the consolidated review, verify tracked fixes and newly changed behavior
+  and dependencies. Start another full review only when the author requests it or
+  the PR materially changes scope; explain any necessary scope expansion.
+- Reopen a resolved finding only with fresh evidence that it remains or has regressed.
+  New blockers must identify a concrete defect in the affected PR behavior; unrelated
+  improvements belong in follow-up work. Once tracked blockers are verified, state
+  remaining evidence gaps and stop rather than searching repeatedly for new scope.
+- These rules guide review feedback; tests, branch protections, and required
+  approvals remain the enforcement gates.
+
 ## Skill conventions
 
 - Skills in this repo are the canonical, harness-neutral source. Do not reference a specific
