@@ -11,6 +11,7 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -91,7 +92,7 @@ def _shim(directory: str, body: str) -> None:
 def _run(
     request: dict, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    clean_env = {**os.environ, **(env or {})}
+    clean_env: dict[str, str] = {**os.environ, **(env or {})}
     for name in _GUARD_ENV:
         if not env or name not in env:
             clean_env.pop(name, None)
@@ -149,8 +150,10 @@ def main() -> int:
     _check(edit_paths({"path": "uv.lock"}) == ["uv.lock"], "explicit path", failures)
 
     print("\nPolicy composition:")
-    with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as log_dir:
-        os.environ["HOOKS_LOG_DIR"] = log_dir
+    with (
+        tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as log_dir,
+        mock.patch.dict(os.environ, {"HOOKS_LOG_DIR": log_dir}),
+    ):
         with _environment():
             cases = (
                 (
@@ -312,33 +315,33 @@ def main() -> int:
                 sent = handle.read()
             _check("Rename the CLI flag" in sent, "host user_prompt reaches the judge", failures)
 
-    print("\nProcess protocol:")
-    denied = _run(_request("bash", {"command": "git push --force origin main"}))
-    denied_json = json.loads(denied.stdout)
-    _check(
-        denied.returncode == 0 and denied_json["decision"] == "deny",
-        "subprocess denial returns JSON",
-        failures,
-    )
-    deferred = _run(_request("read", {"path": "README.md:1-10"}))
-    deferred_json = json.loads(deferred.stdout)
-    _check(
-        deferred.returncode == 0 and deferred_json["decision"] == "defer",
-        "subprocess defer returns JSON",
-        failures,
-    )
-    invalid = subprocess.run(
-        [sys.executable, _HOOK],
-        input="not json",
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    _check(
-        invalid.returncode == 1 and "invalid JSON" in invalid.stderr,
-        "invalid JSON exits 1",
-        failures,
-    )
+        print("\nProcess protocol:")
+        denied = _run(_request("bash", {"command": "git push --force origin main"}))
+        denied_json = json.loads(denied.stdout)
+        _check(
+            denied.returncode == 0 and denied_json["decision"] == "deny",
+            "subprocess denial returns JSON",
+            failures,
+        )
+        deferred = _run(_request("read", {"path": "README.md:1-10"}))
+        deferred_json = json.loads(deferred.stdout)
+        _check(
+            deferred.returncode == 0 and deferred_json["decision"] == "defer",
+            "subprocess defer returns JSON",
+            failures,
+        )
+        invalid = subprocess.run(
+            [sys.executable, _HOOK],
+            input="not json",
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        _check(
+            invalid.returncode == 1 and "invalid JSON" in invalid.stderr,
+            "invalid JSON exits 1",
+            failures,
+        )
 
     print()
     if failures:

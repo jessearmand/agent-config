@@ -47,6 +47,12 @@ verdict was produced (Jev fallback reasons; the extension sets
 `HOOK_JEV_DEBUG=1` unless you set it yourself), at `warn` when the guard
 crashed, followed by the one-time "unavailable" warning.
 
+## Verify the adapter
+
+From the repository root, run `python3 hooks/omp_guard_test.py`. The test submits
+commands to the policies without executing them and uses a local shim for the
+model judge, not a live provider.
+
 ## Uninstall the extension
 
 ```sh
