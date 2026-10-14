@@ -133,15 +133,27 @@ def _executes_stdin(command: SimpleCommand) -> bool:
     if interpreter_kind(name):
         script_args = operands(args, frozenset({"-W", "-X", "-m", "-r", "-I", "-M"}))
         if not script_args:
-            return not _runs_module(name, args)
+            return _python_module(name, args) not in _STDIN_DATA_MODULES
         return script_args[0] in STDIN_PATHS
     return name in ("eval", "source", ".")
 
 
-def _runs_module(name: str, args: tuple[str, ...]) -> bool:
-    """`python3 -m json.tool`: the program is the module, and stdin is its data."""
-    return interpreter_kind(name) == "python" and any(
-        a.startswith("-m") and not a.startswith("--") for a in args)
+# Modules that read stdin only as data. Others, such as `code`, `asyncio` or
+# `pdb`, run what arrives on stdin, so a module is only trusted by name.
+_STDIN_DATA_MODULES = frozenset({"json.tool", "json", "base64", "gzip", "quopri", "tokenize", "ast"})
+
+
+def _python_module(name: str, args: tuple[str, ...]) -> str | None:
+    """The module of `python3 -m json.tool` or `python3 -mjson.tool`; None when
+    no module runs or the interpreter is not Python."""
+    if interpreter_kind(name) != "python":
+        return None
+    for index, arg in enumerate(args):
+        if arg == "-m":
+            return args[index + 1] if index + 1 < len(args) else None
+        if arg.startswith("-m") and not arg.startswith("--"):
+            return arg[2:]
+    return None
 
 
 def _pipeline_sources(command: SimpleCommand, ctx: RuleContext) -> list[SimpleCommand]:
