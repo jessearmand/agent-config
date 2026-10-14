@@ -31,7 +31,7 @@ from danger_rule import (
 from shell_interpreters import interpreter_kind
 from shell_parse import SimpleCommand, parse
 from shell_wrappers import SHELLS, STDIN_PATHS, shell_invocation
-from shell_writes import WRITE, written_paths
+from shell_writes import WRITE, chmod_dash_mode, written_paths
 
 # --------------------------------------------------------------------------- #
 # Disks and devices
@@ -264,6 +264,9 @@ def _chmod_dangerous(command: SimpleCommand, ctx: RuleContext) -> str | None:
     if any(a == "--reference" or a.startswith("--reference=") for a in command.args):
         # `chmod --reference=RFILE FILE...`: the mode comes from RFILE; every operand is a target.
         mode, targets = "", words
+    elif dash_mode := chmod_dash_mode(command.args):
+        # `chmod -R -w DIR`: the mode reads as an option; every operand is a target.
+        mode, targets = dash_mode, words
     elif len(words) < 2:
         return None
     else:

@@ -357,6 +357,22 @@ _TARGET_ONLY = {
 # Mode/owner is the first operand; the rest are targets.
 _LEADING_SPEC = {"chmod": PERMISSIONS, "chown": PERMISSIONS, "chgrp": PERMISSIONS,
                  "chflags": PERMISSIONS}
+# `chmod -x FILE`, `chmod -rw,g+x FILE`: a mode that removes permissions from
+# everyone starts with a dash. No chmod option uses these letters.
+_CHMOD_DASH_MODE = re.compile(r"-[rwxXstugo]+(?:,.*)?")
+
+
+def chmod_dash_mode(args: tuple[str, ...]) -> str | None:
+    """The mode of `chmod -x FILE`, which reads as an option; None when the
+    mode is an ordinary operand."""
+    for arg in args:
+        if arg == "--":
+            return None
+        if _CHMOD_DASH_MODE.fullmatch(arg):
+            return arg
+    return None
+
+
 _COPY_WITH_ARG = {
     "cp": frozenset(),
     "mv": frozenset(),
@@ -386,9 +402,11 @@ def written_paths(command: SimpleCommand, written: dict[str, WrittenFile] | None
         found += [PathWrite(path, action) for path in _operands(args, with_arg)]
     elif name in _LEADING_SPEC:
         operands = _operands(args, frozenset({"--reference", "--from"}))
-        # `chmod --reference=RFILE FILE...`: no mode operand, every operand is a target.
+        # `chmod --reference=RFILE FILE...`, `chmod -x FILE...`: no mode operand,
+        # every operand is a target.
         by_reference = any(a == "--reference" or a.startswith("--reference=") for a in args)
-        found += [PathWrite(path, _LEADING_SPEC[name]) for path in operands[0 if by_reference else 1:]]
+        all_targets = by_reference or (name == "chmod" and chmod_dash_mode(args) is not None)
+        found += [PathWrite(path, _LEADING_SPEC[name]) for path in operands[0 if all_targets else 1:]]
     elif name in _COPY_WITH_ARG:
         found += _copy_like(args, _COPY_WITH_ARG[name], name)
         if name == "ln":

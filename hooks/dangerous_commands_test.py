@@ -228,6 +228,9 @@ CASES = [
     ("mongosh --eval 'db.users.drop()'", "deny", "sql-destructive"),
     ("mongosh --eval 'db.users.deleteMany({})'", "deny", "sql-destructive"),
     ("mongosh --eval 'db.users.deleteMany({age: 3})'", None, None),
+    # A chmod mode that starts with a dash is not an option (live-session review).
+    ("chmod -R -w /usr", "deny", "chmod-dangerous"),
+    ("chmod -R -w build", None, None),
     ("dropdb staging", "deny", "db-drop-tool"),
     # ---- system and security ----
     ("sudo shutdown -h now", "deny", "power-state"),
