@@ -49,6 +49,8 @@ BASH_CASES = [
     ("chmod -r ~/.claude/hooks/secrets_guard.py", "deny", "claude-hooks"),
     ("chmod -R -rwx ~/.claude", "deny", None),
     ("chmod -x scripts/build.sh", None, None),
+    # GNU chmod reads a later dash mode as the mode, so every operand is a target.
+    ("chmod 644 ~/.claude/hooks/secrets_guard.py -x", "deny", "claude-hooks"),
     ("rm -r .git", "deny", "git-hooks"),
     # Relative writes after `cd` resolve where the command runs (PR review).
     ("cd ~/.claude && printf '{}' > settings.json", "deny", "claude-settings"),

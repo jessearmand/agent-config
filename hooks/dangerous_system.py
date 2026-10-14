@@ -202,6 +202,23 @@ def _executed_files(command: SimpleCommand, ctx: RuleContext) -> list[str]:
     return files
 
 
+def _module_roots(command: SimpleCommand) -> list[str]:
+    """`python3 -m a.b` imports `a` from the directory it runs in first (sys.path[0]).
+    Any file there named `a.<suffix>` (.py, .pyc, .so, ...) or under `a/` may load."""
+    if interpreter_kind(command.name) != "python":
+        return []
+    program = python_program(command.args, dict(command.environment))
+    top = program.target.split(".")[0] if program.kind == "module" and program.target else ""
+    return [root for d in command.possible_cwds if top and (root := _absolute(top, d))]
+
+
+def _loads_from(path: str, roots: list[str]) -> bool:
+    return any(path.startswith(root + "/") or (
+        os.path.dirname(path) == os.path.dirname(root)
+        and os.path.basename(path).split(".")[0] == os.path.basename(root)
+        and os.path.basename(path) != os.path.basename(root)) for root in roots)
+
+
 def _absolute(path: str, directory: str | None) -> str | None:
     expanded = os.path.expanduser(path)
     if os.path.isabs(expanded):
@@ -213,7 +230,8 @@ def _run_downloaded(command: SimpleCommand, ctx: RuleContext) -> str | None:
     """`curl -o x.sh URL && bash x.sh`: running a file this same line downloaded."""
     executed = {a for f in _executed_files(command, ctx) for d in command.possible_cwds
                 if (a := _absolute(f, d))}
-    if not executed:
+    roots = _module_roots(command)
+    if not executed and not roots:
         return None
     for earlier in ctx.parsed.commands:
         if earlier is command:
@@ -222,7 +240,8 @@ def _run_downloaded(command: SimpleCommand, ctx: RuleContext) -> str | None:
             continue
         for write in written_paths(earlier):
             for directory in earlier.possible_cwds:
-                if _absolute(write.path, directory) in executed:
+                landed = _absolute(write.path, directory)
+                if landed in executed or (landed and _loads_from(landed, roots)):
                     return f"{earlier.name} downloads {write.path}, then {command.name} runs it"
     return None
 
@@ -270,8 +289,35 @@ def _decodes(source: SimpleCommand) -> bool:
 # Permissions
 # --------------------------------------------------------------------------- #
 
-_WORLD_WRITABLE = re.compile(r"^(?:[0-7]?[0-7][0-7][2367]|(?:[ugoa]*[ao][ugoa]*|)\+[rwxXst]*w)")
-_SETUID = re.compile(r"^(?:[4267][0-7]{3}|[ugoa]*\+[rwxX]*s)")
+_NUMERIC_WORLD_WRITABLE = re.compile(r"0*[0-7]?[0-7][0-7][2367]")
+_NUMERIC_SETUID = re.compile(r"0*[4267][0-7]{3}")
+# One clause of a symbolic mode: who, then one or more operations
+# (`u+x`, `-x`, `go-w+s`, `a=rwx`, `o=u`).
+_CLAUSE = re.compile(r"([ugoa]*)((?:[-+=][rwxXstugo]*)+)")
+_OPERATION = re.compile(r"([-+=])([rwxXstugo]*)")
+
+
+def _grants(mode: str, permission: str, world_only: bool) -> bool:
+    """Some clause of a symbolic mode adds `permission`. Copying another
+    class's bits (`o=u`) may add `w`. With `world_only`, only a clause for
+    others counts: `o`, `a`, or no who (umask may not mask it)."""
+    for clause in mode.split(","):
+        match = _CLAUSE.fullmatch(clause)
+        if not match or (world_only and match.group(1) and not set(match.group(1)) & {"o", "a"}):
+            continue
+        for op, perms in _OPERATION.findall(match.group(2)):
+            copies = permission == "w" and bool(set(perms) & {"u", "g", "o"})
+            if op != "-" and (permission in perms or copies):
+                return True
+    return False
+
+
+def _world_writable(mode: str) -> bool:
+    return bool(_NUMERIC_WORLD_WRITABLE.fullmatch(mode)) or _grants(mode, "w", world_only=True)
+
+
+def _setuid(mode: str) -> bool:
+    return bool(_NUMERIC_SETUID.fullmatch(mode)) or _grants(mode, "s", world_only=False)
 
 
 def _chmod_dangerous(command: SimpleCommand, ctx: RuleContext) -> str | None:
@@ -283,6 +329,8 @@ def _chmod_dangerous(command: SimpleCommand, ctx: RuleContext) -> str | None:
         mode, targets = "", words
     elif dash_mode := chmod_dash_mode(command.args):
         # `chmod -R -w DIR`: the mode reads as an option; every operand is a target.
+        # A dash mode after the first operand is a file to BSD chmod; the first
+        # operand stays the mode (below), the stricter of the two readings.
         mode, targets = dash_mode, words
     elif len(words) < 2:
         return None
@@ -291,9 +339,9 @@ def _chmod_dangerous(command: SimpleCommand, ctx: RuleContext) -> str | None:
     if not targets:
         return None
     recursive = short_flag(command.args, "R") or long_flag(command.args, "--recursive")
-    if mode and _SETUID.match(mode):
+    if mode and _setuid(mode):
         return f"chmod {mode} (setuid/setgid)"
-    if mode and _WORLD_WRITABLE.match(mode) and (recursive or any(is_broad_target(t, ctx.cwd) for t in targets)):
+    if mode and _world_writable(mode) and (recursive or any(is_broad_target(t, ctx.cwd) for t in targets)):
         return f"chmod {'-R ' if recursive else ''}{mode}"
     if recursive and any(is_broad_target(t, ctx.cwd) for t in targets):
         return f"chmod -R on {targets[0]}"
@@ -304,7 +352,7 @@ def _chmod_world_single(command: SimpleCommand, ctx: RuleContext) -> str | None:
     if command.name != "chmod":
         return None
     words = operands(command.args)
-    return f"chmod {words[0]}" if len(words) >= 2 and _WORLD_WRITABLE.match(words[0]) else None
+    return f"chmod {words[0]}" if len(words) >= 2 and _world_writable(words[0]) else None
 
 
 def _chown_broad(command: SimpleCommand, ctx: RuleContext) -> str | None:
