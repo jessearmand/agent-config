@@ -28,6 +28,7 @@ from danger_rule import (
     positional_words,
     short_flag,
 )
+from python_argv import PythonProgram, python_program
 from shell_interpreters import interpreter_kind
 from shell_parse import SimpleCommand, parse
 from shell_wrappers import SHELLS, STDIN_PATHS, shell_invocation
@@ -130,11 +131,11 @@ def _executes_stdin(command: SimpleCommand) -> bool:
     if name in SHELLS:
         shell = shell_invocation(name, args)
         return shell.reads_stdin and not shell.syntax_only
+    if interpreter_kind(name) == "python":
+        return _python_runs_stdin(python_program(args, dict(command.environment)))
     if interpreter_kind(name):
         script_args = operands(args, frozenset({"-W", "-X", "-m", "-r", "-I", "-M"}))
-        if not script_args:
-            return _python_module(name, args) not in _STDIN_DATA_MODULES
-        return script_args[0] in STDIN_PATHS
+        return not script_args or script_args[0] in STDIN_PATHS
     return name in ("eval", "source", ".")
 
 
@@ -143,17 +144,13 @@ def _executes_stdin(command: SimpleCommand) -> bool:
 _STDIN_DATA_MODULES = frozenset({"json.tool", "json", "base64", "gzip", "quopri", "tokenize", "ast"})
 
 
-def _python_module(name: str, args: tuple[str, ...]) -> str | None:
-    """The module of `python3 -m json.tool` or `python3 -mjson.tool`; None when
-    no module runs or the interpreter is not Python."""
-    if interpreter_kind(name) != "python":
-        return None
-    for index, arg in enumerate(args):
-        if arg == "-m":
-            return args[index + 1] if index + 1 < len(args) else None
-        if arg.startswith("-m") and not arg.startswith("--"):
-            return arg[2:]
-    return None
+def _python_runs_stdin(program: PythonProgram) -> bool:
+    """`-i` (or PYTHONINSPECT) runs what remains on stdin once the program ends."""
+    if program.inspect or program.kind == "stdin":
+        return True
+    if program.kind == "module":
+        return program.target not in _STDIN_DATA_MODULES
+    return program.kind == "script" and program.target in STDIN_PATHS
 
 
 def _pipeline_sources(command: SimpleCommand, ctx: RuleContext) -> list[SimpleCommand]:
