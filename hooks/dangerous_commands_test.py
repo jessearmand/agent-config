@@ -224,6 +224,10 @@ CASES = [
     ("psql -c \"CREATE FUNCTION f() RETURNS text AS 'SELECT ''DROP TABLE users''' LANGUAGE sql\"", None, None),
     ("psql -c \"SELECT 'DROP TABLE harmless'; DROP TABLE users\"", "deny", "sql-destructive"),
     ("redis-cli -h cache FLUSHALL", "deny", "sql-destructive"),
+    # Calls that end in `)` (live-session review).
+    ("mongosh --eval 'db.users.drop()'", "deny", "sql-destructive"),
+    ("mongosh --eval 'db.users.deleteMany({})'", "deny", "sql-destructive"),
+    ("mongosh --eval 'db.users.deleteMany({age: 3})'", None, None),
     ("dropdb staging", "deny", "db-drop-tool"),
     # ---- system and security ----
     ("sudo shutdown -h now", "deny", "power-state"),
