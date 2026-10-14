@@ -49,6 +49,7 @@ from shell_unwrap import (
 from shell_wrappers import (
     SHELLS,
     SSH_OPTIONS_WITH_ARG,
+    STDIN_PATHS,
     STRING_RUNNERS,
     WrapperSpec,
     shell_invocation,
@@ -216,6 +217,11 @@ def _shell_payload(command: SimpleCommand, args: list[str], ctx: _Context,
         text = _echoed_text(feeder)
         if text:
             nested(text, f"{feeder.name} | {command.name}")
+    elif feeder.name == "cat" and not [a for a in feeder.args if a not in STDIN_PATHS]:
+        # `cat <<EOF | bash`: cat passes its own stdin on unchanged.
+        passed = [r for r in feeder.redirects if r.op in _STDIN_OPERATORS and (r.fd is None or r.fd == 0)]
+        if passed:
+            _stdin_script(passed[-1], command, ctx, nested)
     elif feeder.name == "cat" and len(feeder.args) == 1:
         # `cat script.sh | bash` runs the file just like `bash script.sh`.
         _run_file(feeder.args[0], command, ctx, nested)

@@ -132,8 +132,16 @@ def _executes_stdin(command: SimpleCommand) -> bool:
         return shell.reads_stdin and not shell.syntax_only
     if interpreter_kind(name):
         script_args = operands(args, frozenset({"-W", "-X", "-m", "-r", "-I", "-M"}))
-        return not script_args or script_args[0] in STDIN_PATHS
+        if not script_args:
+            return not _runs_module(name, args)
+        return script_args[0] in STDIN_PATHS
     return name in ("eval", "source", ".")
+
+
+def _runs_module(name: str, args: tuple[str, ...]) -> bool:
+    """`python3 -m json.tool`: the program is the module, and stdin is its data."""
+    return interpreter_kind(name) == "python" and any(
+        a.startswith("-m") and not a.startswith("--") for a in args)
 
 
 def _pipeline_sources(command: SimpleCommand, ctx: RuleContext) -> list[SimpleCommand]:
