@@ -231,6 +231,9 @@ CASES = [
     # A chmod mode that starts with a dash is not an option (live-session review).
     ("chmod -R -w /usr", "deny", "chmod-dangerous"),
     ("chmod -R -w build", None, None),
+    # `-o<value>`: the rest of the word is the push option (live-session review).
+    ("git push -oci.skip-fast origin main", None, None),
+    ("git push -fo ci.skip origin main", "deny", "git-push-force"),
     ("dropdb staging", "deny", "db-drop-tool"),
     # ---- system and security ----
     ("sudo shutdown -h now", "deny", "power-state"),
