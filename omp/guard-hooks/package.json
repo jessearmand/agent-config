@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "rm -rf, dangerous-command, secrets, config, generated-file, and Jev risk guards for omp and pi tool calls",
+  "scripts": {
+    "test": "node --test index.test.ts"
+  },
   "omp": {
     "extensions": [
       "./index.ts"

@@ -1,9 +1,8 @@
 // Guard hooks for omp (Oh My Pi) and pi. Both hosts share the extension API
 // used here: `pi.on("tool_call")`, `{ block, reason }`, `ctx.hasUI`,
 // `ctx.ui.confirm`, `ctx.sessionManager`. omp runs extensions on Bun and pi on
-// Node, so this file uses only Node APIs, and treats omp-only extras
-// (`setLabel`, `logger`) as optional.
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+// Node, so this file uses only Node APIs and treats omp's logger as optional.
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import path from "node:path";
@@ -170,10 +169,9 @@ type Logger = Partial<Record<"debug" | "info" | "warn", (message: string) => voi
 
 export default function guardHooks(pi: ExtensionAPI) {
     let warnedUnavailable = false;
-    const host = pi as unknown as { setLabel?: (label: string) => void; logger?: Logger };
+    const host = pi as unknown as { logger?: Logger };
     const log = (level: keyof Logger, message: string) => host.logger?.[level]?.(message);
 
-    host.setLabel?.("guard-hooks");
     pi.on("tool_call", async (event, ctx) => {
         if (
             process.env.OMP_GUARD_DISABLE === "1" ||
@@ -182,13 +180,15 @@ export default function guardHooks(pi: ExtensionAPI) {
             return;
         }
 
-        const { verdict, stderr, code } = await runGuard({
+        const result = await runGuard({
             tool: event.toolName,
             input: event.input,
             cwd: ctx.cwd,
             session_id: sessionId(ctx),
             user_prompt: event.toolName === "bash" ? latestUserPrompt(ctx) : null,
         });
+        const { stderr, code } = result;
+        let verdict = result.verdict;
         const diagnostics = stderr.trim();
         if (diagnostics) {
             log(verdict ? "debug" : "warn",
@@ -197,15 +197,26 @@ export default function guardHooks(pi: ExtensionAPI) {
         if (!verdict) {
             if (!warnedUnavailable) {
                 warnedUnavailable = true;
-                log("warn", "guard-hooks: omp_guard.py unavailable; tool calls are not guarded");
+                log("warn", "guard-hooks: omp_guard.py unavailable; manual confirmation required");
                 if (ctx.hasUI) {
                     ctx.ui.notify(
-                        "guard-hooks: Python guard unavailable; running without guards",
+                        "guard-hooks: Python guard unavailable; manual confirmation required",
                         "warning",
                     );
                 }
             }
-            return;
+            // Pi has no built-in approval fallback. A broken policy backend
+            // must not silently authorize calls, even after the first warning.
+            const target = event.toolName === "bash" ? event.input.command :
+                ("path" in event.input ? event.input.path : undefined);
+            const detail = typeof target === "string" ? `\n\n${target}` : "";
+            verdict = {
+                decision: "ask",
+                hook: "guard-hooks",
+                reason: `The Python guard is unavailable. This ${event.toolName} call has not been checked. ` +
+                    `Approve it without policy checks?${detail}`,
+                system_message: null,
+            };
         }
         if (verdict.decision === "defer") return;
 

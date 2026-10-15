@@ -73,8 +73,9 @@ CONFIG_RULES: tuple[ConfigRule, ...] = (
                _rx(r"(?:^|/)\.omp/(?:agent/)?(?:config\.ya?ml|settings\.json|extensions(?:/|$)|plugins(?:/|$)|hooks(?:/|$))"),
                "omp configuration, extensions and hooks"),
     ConfigRule("pi-config", CRITICAL,
-               _rx(r"(?:^|/)\.pi/(?:agent/)?(?:settings\.json|extensions(?:/|$)|hooks(?:/|$)|packages(?:/|$))"),
-               "pi configuration, extensions and hooks"),
+               _rx(r"(?:^|/)\.pi/(?:agent/)?(?:(?:settings|mcp|models|keybindings|trust)\.json$"
+                   r"|(?:SYSTEM|APPEND_SYSTEM)\.md$|extensions(?:/|$)|hooks(?:/|$)|packages(?:/|$))"),
+               "pi configuration, MCP servers, model providers, extensions and system prompts"),
     ConfigRule("opencode-config", CRITICAL,
                _rx(r"(?:^|/)(?:\.config/opencode/|\.opencode/)(?:opencode\.jsonc?$|plugins?(?:/|$))"
                    r"|(?:^|/)opencode\.jsonc?$"),
@@ -131,6 +132,7 @@ PROTECTED_ROOTS: tuple[str, ...] = (
     "~/.agents/skills",
     "~/.omp",
     "~/.pi",
+    "~/.pi/agent",  # Also maps to PI_CODING_AGENT_DIR when relocated.
     "~/.config/opencode",
     "~/.ssh",
     "~/Library/LaunchAgents",
@@ -158,6 +160,7 @@ PROJECT_PROTECTED_ROOTS: tuple[str, ...] = (".claude", ".git/hooks")
 HOME_ALIASES: tuple[tuple[str, str], ...] = (
     ("CLAUDE_CONFIG_DIR", "~/.claude"),
     ("CODEX_HOME", "~/.codex"),
+    ("PI_CODING_AGENT_DIR", "~/.pi/agent"),
     ("XDG_CONFIG_HOME", "~/.config"),
     ("GIT_CONFIG_GLOBAL", "~/.gitconfig"),
     ("GIT_CONFIG_SYSTEM", "/etc/gitconfig"),
