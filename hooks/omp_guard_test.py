@@ -148,6 +148,52 @@ def main() -> int:
         failures,
     )
     _check(edit_paths({"path": "uv.lock"}) == ["uv.lock"], "explicit path", failures)
+    renamed = {
+        "path": "notes.txt",
+        "edits": [
+            None,
+            "skip",
+            {"op": "update", "diff": "rename to ~/.claude/settings.json\n"},
+            {"op": "update", "rename": " notes2.txt "},
+            {"rename": {"to": "notes3.txt"}},
+        ],
+    }
+    _check(
+        edit_paths(renamed) == ["notes.txt", "notes2.txt", "notes3.txt"],
+        "patch-mode rename destinations, including one nested object",
+        failures,
+    )
+    _check(
+        edit_paths({"path": "a.rs", "edits": {"rename": "b.rs"}}) == ["a.rs", "b.rs"],
+        "a single edit object still yields its rename",
+        failures,
+    )
+    _check(
+        edit_paths({"path": "notes.txt", "edits": "notes2.txt"}) == ["notes.txt"],
+        "a string edits value is not a list of renames",
+        failures,
+    )
+    sloppy = {
+        "input": (
+            "*** Edit File: ~/.claude/settings.json\n"
+            "*** Find\nold\n"
+            "*** Replace\nnew\n"
+            '*** Edit File: "notes two.txt" all\n'
+            "*** Edit File:\n"
+            "*** Edit File: all\n"
+        )
+    }
+    _check(
+        edit_paths(sloppy) == ["~/.claude/settings.json", "notes two.txt"],
+        "sloppy edit file headers, without the match-all flag",
+        failures,
+    )
+    _check(
+        edit_paths({"input": '*** Edit File: "~/.claude/settings.json\n'})
+        == ["~/.claude/settings.json"],
+        "unclosed sloppy quote still yields the path",
+        failures,
+    )
 
     print("\nPolicy composition:")
     with (
@@ -211,6 +257,105 @@ def main() -> int:
                     "deny",
                     "config-guard",
                     "pi edit with a `file` key",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": [{"rename": "~/.claude/settings.json"}]},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "patch rename onto settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {
+                            "path": "notes.txt",
+                            "edits": [
+                                {"rename": "notes2.txt"},
+                                {"op": "update", "rename": "~/.claude/settings.json"},
+                            ],
+                        },
+                    ),
+                    "deny",
+                    "config-guard",
+                    "later patch rename onto settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": {"rename": {"dest": "~/.claude/settings.json"}}},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "rename destination nested under one edit object",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": [{"op": "update", "rename": "notes2.txt"}]},
+                    ),
+                    "defer",
+                    "",
+                    "harmless patch rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": "notes2.txt"}),
+                    "defer",
+                    "",
+                    "string edits value is not a rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [None, "skip", 1]}),
+                    "defer",
+                    "",
+                    "non-object edit entries",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [{"rename": 1}]}),
+                    "ask",
+                    "omp-guard",
+                    "unreadable patch rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [{"rename": {}}]}),
+                    "ask",
+                    "omp-guard",
+                    "empty object patch rename",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {
+                            "path": "notes.txt",
+                            "edits": [
+                                {"rename": "~/.claude/settings.json"},
+                                {"rename": 1},
+                            ],
+                        },
+                    ),
+                    "deny",
+                    "config-guard",
+                    "protected rename wins over an unreadable one",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"input": "*** Edit File: ~/.claude/settings.json\n*** Find\na\n*** Replace\nb\n"},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "sloppy edit of settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"input": "*** Edit File: notes.txt\n*** Find\na\n*** Replace\nb\n"},
+                    ),
+                    "defer",
+                    "",
+                    "harmless sloppy edit",
                 ),
                 (
                     _request("find", {"pattern": "*.rs", "path": "src"}),
