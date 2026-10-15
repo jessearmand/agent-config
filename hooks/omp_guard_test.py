@@ -11,6 +11,7 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,6 +33,11 @@ _GUARD_ENV = (
     "AI_GATEWAY_API_KEY",
     "BASH_RISK_JUDGE_ASK_THRESHOLD",
     "BASH_RISK_JUDGE_DISABLE",
+    "CONFIG_GUARD_ASK",
+    "CONFIG_GUARD_DISABLE",
+    "DANGEROUS_COMMANDS_ASK",
+    "DANGEROUS_COMMANDS_DISABLE",
+    "DANGEROUS_COMMANDS_LEVEL",
     "FILE_PROTECTION_ASK",
     "FILE_PROTECTION_DISABLE",
     "HOOK_JEV_ENABLE",
@@ -86,7 +92,7 @@ def _shim(directory: str, body: str) -> None:
 def _run(
     request: dict, env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    clean_env = {**os.environ, **(env or {})}
+    clean_env: dict[str, str] = {**os.environ, **(env or {})}
     for name in _GUARD_ENV:
         if not env or name not in env:
             clean_env.pop(name, None)
@@ -142,15 +148,63 @@ def main() -> int:
         failures,
     )
     _check(edit_paths({"path": "uv.lock"}) == ["uv.lock"], "explicit path", failures)
+    renamed = {
+        "path": "notes.txt",
+        "edits": [
+            None,
+            "skip",
+            {"op": "update", "diff": "rename to ~/.claude/settings.json\n"},
+            {"op": "update", "rename": " notes2.txt "},
+            {"rename": {"to": "notes3.txt"}},
+        ],
+    }
+    _check(
+        edit_paths(renamed) == ["notes.txt", "notes2.txt", "notes3.txt"],
+        "patch-mode rename destinations, including one nested object",
+        failures,
+    )
+    _check(
+        edit_paths({"path": "a.rs", "edits": {"rename": "b.rs"}}) == ["a.rs", "b.rs"],
+        "a single edit object still yields its rename",
+        failures,
+    )
+    _check(
+        edit_paths({"path": "notes.txt", "edits": "notes2.txt"}) == ["notes.txt"],
+        "a string edits value is not a list of renames",
+        failures,
+    )
+    sloppy = {
+        "input": (
+            "*** Edit File: ~/.claude/settings.json\n"
+            "*** Find\nold\n"
+            "*** Replace\nnew\n"
+            '*** Edit File: "notes two.txt" all\n'
+            "*** Edit File:\n"
+            "*** Edit File: all\n"
+        )
+    }
+    _check(
+        edit_paths(sloppy) == ["~/.claude/settings.json", "notes two.txt"],
+        "sloppy edit file headers, without the match-all flag",
+        failures,
+    )
+    _check(
+        edit_paths({"input": '*** Edit File: "~/.claude/settings.json\n'})
+        == ["~/.claude/settings.json"],
+        "unclosed sloppy quote still yields the path",
+        failures,
+    )
 
     print("\nPolicy composition:")
-    with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as log_dir:
-        os.environ["HOOKS_LOG_DIR"] = log_dir
+    with (
+        tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as log_dir,
+        mock.patch.dict(os.environ, {"HOOKS_LOG_DIR": log_dir}),
+    ):
         with _environment():
             cases = (
                 (
                     _request("bash", {"command": "rm -rf build"}),
-                    "deny",
+                    "ask",
                     "rm-rf-guard",
                     "rm -rf",
                 ),
@@ -173,6 +227,141 @@ def main() -> int:
                     "deny",
                     "secrets-guard",
                     "secret write",
+                ),
+                (
+                    _request("bash", {"command": "git push --force origin main"}),
+                    "deny",
+                    "dangerous-commands",
+                    "force push",
+                ),
+                (
+                    _request("bash", {"command": "echo '{}' > .mcp.json"}),
+                    "deny",
+                    "config-guard",
+                    "shell write to MCP config",
+                ),
+                (
+                    _request("write", {"path": "~/.claude/settings.json", "content": "{}"}),
+                    "deny",
+                    "config-guard",
+                    "settings write",
+                ),
+                (
+                    _request("multiedit", {"path": ".env", "edits": []}),
+                    "deny",
+                    "secrets-guard",
+                    "pi multiedit of a secret",
+                ),
+                (
+                    _request("edit", {"file": "~/.claude/settings.json", "oldText": "a", "newText": "b"}),
+                    "deny",
+                    "config-guard",
+                    "pi edit with a `file` key",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": [{"rename": "~/.claude/settings.json"}]},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "patch rename onto settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {
+                            "path": "notes.txt",
+                            "edits": [
+                                {"rename": "notes2.txt"},
+                                {"op": "update", "rename": "~/.claude/settings.json"},
+                            ],
+                        },
+                    ),
+                    "deny",
+                    "config-guard",
+                    "later patch rename onto settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": {"rename": {"dest": "~/.claude/settings.json"}}},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "rename destination nested under one edit object",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"path": "notes.txt", "edits": [{"op": "update", "rename": "notes2.txt"}]},
+                    ),
+                    "defer",
+                    "",
+                    "harmless patch rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": "notes2.txt"}),
+                    "defer",
+                    "",
+                    "string edits value is not a rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [None, "skip", 1]}),
+                    "defer",
+                    "",
+                    "non-object edit entries",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [{"rename": 1}]}),
+                    "ask",
+                    "omp-guard",
+                    "unreadable patch rename",
+                ),
+                (
+                    _request("edit", {"path": "notes.txt", "edits": [{"rename": {}}]}),
+                    "ask",
+                    "omp-guard",
+                    "empty object patch rename",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {
+                            "path": "notes.txt",
+                            "edits": [
+                                {"rename": "~/.claude/settings.json"},
+                                {"rename": 1},
+                            ],
+                        },
+                    ),
+                    "deny",
+                    "config-guard",
+                    "protected rename wins over an unreadable one",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"input": "*** Edit File: ~/.claude/settings.json\n*** Find\na\n*** Replace\nb\n"},
+                    ),
+                    "deny",
+                    "config-guard",
+                    "sloppy edit of settings.json",
+                ),
+                (
+                    _request(
+                        "edit",
+                        {"input": "*** Edit File: notes.txt\n*** Find\na\n*** Replace\nb\n"},
+                    ),
+                    "defer",
+                    "",
+                    "harmless sloppy edit",
+                ),
+                (
+                    _request("find", {"pattern": "*.rs", "path": "src"}),
+                    "defer",
+                    "",
+                    "pi find tool",
                 ),
                 (
                     _request("read", {"path": "src/main.rs:10-20"}),
@@ -207,6 +396,42 @@ def main() -> int:
                     failures,
                 )
 
+        with _environment(), tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as sql_dir:
+            with open(os.path.join(sql_dir, "on-disk.sql"), "w", encoding="utf-8") as handle:
+                handle.write("DROP TABLE users;")
+            print("\nSQL file execution order:")
+            sql_cases = (
+                ("printf 'DROP TABLE users;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; cat q.sql | cat | psql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; sqlite3 db < q.sql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; psql -f q.sql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; psql -c '\\i q.sql'; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'SELECT 1;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'DROP TABLE users;' > q.sql", "defer"),
+                ("printf 'DROP TABLE users;' > q.sql; printf 'SELECT 1;' > q.sql; "
+                 "sqlite3 db < q.sql", "defer"),
+                ("printf 'DROP TABLE users;' > q.sql; printf 'SELECT 1;' > q.sql; "
+                 "psql -f q.sql", "defer"),
+                ("cat on-disk.sql | sqlite3 db; printf 'SELECT 1;' > on-disk.sql", "ask"),
+                ("printf 'SELECT 1;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'DROP TABLE users;' > q.sql; sqlite3 db < q.sql", "deny"),
+            )
+            for command, expected in sql_cases:
+                request = _request("bash", {"command": command})
+                request["cwd"] = sql_dir
+                result = judge(request)
+                _check(
+                    result["decision"] == expected
+                    and result["hook"] == ("dangerous-commands" if expected != "defer" else ""),
+                    f"{command!r} -> {result['decision']}/{result['hook'] or '-'}",
+                    failures,
+                )
+
         with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as bindir:
             capture = os.path.join(bindir, "model-called")
             _shim(
@@ -223,7 +448,7 @@ def main() -> int:
                 old_path = os.environ.get("PATH", "")
                 os.environ["PATH"] = bindir + os.pathsep + old_path
                 try:
-                    result = judge(_request("bash", {"command": "rm -rf build"}))
+                    result = judge(_request("bash", {"command": "git push --force origin main"}))
                 finally:
                     os.environ["PATH"] = old_path
             _check(
@@ -243,7 +468,10 @@ def main() -> int:
                 old_path = os.environ.get("PATH", "")
                 os.environ["PATH"] = bindir + os.pathsep + old_path
                 try:
-                    result = judge(_request("bash", {"command": "git clean -xdf"}))
+                    # Only the model can judge this one: no deterministic rule covers it.
+                    result = judge(
+                        _request("bash", {"command": "python3 -c 'import shutil; shutil.rmtree(\"data\")'"})
+                    )
                 finally:
                     os.environ["PATH"] = old_path
             _check(
@@ -252,33 +480,49 @@ def main() -> int:
                 failures,
             )
 
-    print("\nProcess protocol:")
-    denied = _run(_request("bash", {"command": "rm -rf build"}))
-    denied_json = json.loads(denied.stdout)
-    _check(
-        denied.returncode == 0 and denied_json["decision"] == "deny",
-        "subprocess denial returns JSON",
-        failures,
-    )
-    deferred = _run(_request("read", {"path": "README.md:1-10"}))
-    deferred_json = json.loads(deferred.stdout)
-    _check(
-        deferred.returncode == 0 and deferred_json["decision"] == "defer",
-        "subprocess defer returns JSON",
-        failures,
-    )
-    invalid = subprocess.run(
-        [sys.executable, _HOOK],
-        input="not json",
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    _check(
-        invalid.returncode == 1 and "invalid JSON" in invalid.stderr,
-        "invalid JSON exits 1",
-        failures,
-    )
+        with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as bindir:
+            state = os.path.join(bindir, "state.txt")
+            _shim(bindir, f"cat > '{state}'; printf '%s' '{SUCCESS_JSON}'")
+            with _environment({"AI_GATEWAY_API_KEY": "test-key", "HOOK_JEV_ENABLE": "1"}):
+                old_path = os.environ.get("PATH", "")
+                os.environ["PATH"] = bindir + os.pathsep + old_path
+                try:
+                    request = _request("bash", {"command": "sqlite3 app.db .tables"})
+                    request["user_prompt"] = "Rename the CLI flag --out to --output"
+                    judge(request)
+                finally:
+                    os.environ["PATH"] = old_path
+            with open(state, encoding="utf-8") as handle:
+                sent = handle.read()
+            _check("Rename the CLI flag" in sent, "host user_prompt reaches the judge", failures)
+
+        print("\nProcess protocol:")
+        denied = _run(_request("bash", {"command": "git push --force origin main"}))
+        denied_json = json.loads(denied.stdout)
+        _check(
+            denied.returncode == 0 and denied_json["decision"] == "deny",
+            "subprocess denial returns JSON",
+            failures,
+        )
+        deferred = _run(_request("read", {"path": "README.md:1-10"}))
+        deferred_json = json.loads(deferred.stdout)
+        _check(
+            deferred.returncode == 0 and deferred_json["decision"] == "defer",
+            "subprocess defer returns JSON",
+            failures,
+        )
+        invalid = subprocess.run(
+            [sys.executable, _HOOK],
+            input="not json",
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        _check(
+            invalid.returncode == 1 and "invalid JSON" in invalid.stderr,
+            "invalid JSON exits 1",
+            failures,
+        )
 
     print()
     if failures:

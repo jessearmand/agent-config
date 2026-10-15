@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adapt omp tool calls to the shared deterministic and Jev guard policies."""
+"""Adapt omp and pi tool calls to the shared deterministic and Jev guard policies."""
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ os.environ.setdefault(
 )
 
 import bash_risk_judge  # noqa: E402
+import config_guard  # noqa: E402
+import dangerous_commands  # noqa: E402
 import file_protection  # noqa: E402
 import rm_rf_guard  # noqa: E402
 import secrets_guard  # noqa: E402
@@ -28,8 +30,11 @@ HANDLED_TOOLS = (
     "read",
     "write",
     "edit",
+    "multiedit",
     "grep",
     "glob",
+    "find",
+    "ls",
     "ast_edit",
     "apply_patch",
 )
@@ -42,6 +47,10 @@ _PATCH_FILE = re.compile(
     re.MULTILINE,
 )
 _PATCH_MOVE = re.compile(r"^\*\*\* Move to: (.+?)\s*$", re.MULTILINE)
+# Sloppy mode names the file on its own header. ` all` is a match-every flag,
+# and a bare header continues the file already open.
+_SLOPPY_FILE = re.compile(r"^\*\*\* Edit File:[ \t]*(.*)[ \t]*$", re.MULTILINE)
+_RENAME_DEPTH = 8
 
 
 def strip_selector(path: str) -> str:
@@ -78,8 +87,81 @@ def _move_path(value: str) -> str:
     return parts[0] if parts else ""
 
 
+def _sloppy_path(raw: str) -> str:
+    """The file a sloppy `*** Edit File:` header writes, without its match flag."""
+    text = raw.strip()
+    if text == "all":
+        return ""
+    if text.endswith(" all"):
+        text = text[: -len(" all")].rstrip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        return text[1:-1].strip()
+    # An unclosed quote is still a path. Dropping it would hide the destination.
+    if text.startswith(("'", '"')):
+        return text[1:].strip()
+    return text
+
+
+def _destination_strings(value: object, depth: int = 0) -> tuple[list[str], bool]:
+    """Path strings inside one rename value, and whether a destination was lost.
+
+    The documented value is a string. A list or object is walked so a nested
+    path is still checked. A number, boolean, or other non-path is unreadable:
+    treating it as "no destination" would let the edit defer.
+    """
+    if isinstance(value, str):
+        text = value.strip()
+        return ([text] if text else []), False
+    if depth >= _RENAME_DEPTH or not isinstance(value, (dict, list, tuple)):
+        return [], True
+    nodes = value.values() if isinstance(value, dict) else value
+    found: list[str] = []
+    for node in nodes:
+        if node is None:
+            continue
+        paths, _hidden = _destination_strings(node, depth + 1)
+        found.extend(paths)
+    if found:
+        return found, False
+    return [], True
+
+
+def _patch_rename_destinations(edits: object) -> tuple[list[str], bool]:
+    """Every patch-mode `edits[].rename` destination, and any unreadable one.
+
+    The wire contract is a list of objects with an optional string `rename`
+    (the file the top-level path is moved onto). One object is read the same
+    way. Entries that are not objects have no rename and are skipped. An empty
+    string is not a destination; any other non-path rename is unreadable.
+    """
+    if isinstance(edits, dict):
+        entries: Iterable[object] = (edits,)
+    elif isinstance(edits, (list, tuple)):
+        entries = edits
+    else:
+        return [], False
+
+    found: list[str] = []
+    unreadable = False
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        rename = entry.get("rename")
+        if rename is None:
+            continue
+        paths, hidden = _destination_strings(rename)
+        _append_unique(found, paths)
+        unreadable = unreadable or hidden
+    return found, unreadable
+
+
 def edit_paths(inputs: dict) -> list[str]:
-    """Extract every source and destination path from edit-family tool inputs."""
+    """Extract every source and destination path from edit-family tool inputs.
+
+    Hashline puts a destination on `MV`, and apply-patch puts one on
+    `*** Move to:`. Patch mode puts it on `edits[].rename` instead of in the
+    patch text. Sloppy mode names each file with `*** Edit File:`.
+    """
     found: list[str] = []
     edit_input = inputs.get("input")
     if isinstance(edit_input, str):
@@ -94,8 +176,13 @@ def edit_paths(inputs: dict) -> list[str]:
             continue
         _append_unique(found, _PATCH_FILE.findall(value))
         _append_unique(found, _PATCH_MOVE.findall(value))
+        _append_unique(
+            found, (_sloppy_path(item) for item in _SLOPPY_FILE.findall(value))
+        )
 
     _append_unique(found, paths_from(inputs))
+    destinations, _unreadable = _patch_rename_destinations(inputs.get("edits"))
+    _append_unique(found, destinations)
     return found
 
 
@@ -141,7 +228,8 @@ def normalize(
         tool_name = "Read" if tool == "read" else "Write"
         return [_payload(tool_name, {"file_path": normalized}, cwd, session_id)]
 
-    if tool in ("grep", "glob"):
+    if tool in ("grep", "glob", "find", "ls"):
+        # pi names its file-listing tools find/ls; omp calls the same thing glob.
         tool_name = "Grep" if tool == "grep" else "Glob"
         return [
             _payload(tool_name, {"path": path}, cwd, session_id)
@@ -149,7 +237,7 @@ def normalize(
             if not _URL_SCHEME.match(path)
         ]
 
-    if tool in ("edit", "apply_patch"):
+    if tool in ("edit", "multiedit", "apply_patch"):
         return [
             _payload("Edit", {"file_path": path}, cwd, session_id)
             for path in edit_paths(inputs)
@@ -184,22 +272,35 @@ def _verdict(result: Decision | None) -> dict:
     }
 
 
+_UNREADABLE_RENAME = (
+    "This edit includes a rename destination that is not a path, so it is not "
+    "possible to tell whether a protected file would be replaced."
+)
+
+
 def judge(request: dict) -> dict:
     """Run all applicable guards and return the strongest verdict."""
     tool = request.get("tool", "")
     inputs = request.get("input")
     cwd = request.get("cwd")
+    tool_name = tool if isinstance(tool, str) else ""
+    tool_inputs = inputs if isinstance(inputs, dict) else {}
     payloads = normalize(
-        tool if isinstance(tool, str) else "",
-        inputs if isinstance(inputs, dict) else {},
+        tool_name,
+        tool_inputs,
         cwd if isinstance(cwd, str) and cwd else os.getcwd(),
         request.get("session_id"),
     )
-    if not payloads:
+    unreadable_rename = False
+    if tool_name in ("edit", "multiedit", "apply_patch"):
+        _destinations, unreadable_rename = _patch_rename_destinations(
+            tool_inputs.get("edits")
+        )
+    if not payloads and not unreadable_rename:
         return _verdict(None)
 
     first_ask: Decision | None = None
-    for hook in (rm_rf_guard, secrets_guard, file_protection):
+    for hook in (rm_rf_guard, dangerous_commands, secrets_guard, config_guard, file_protection):
         for payload in payloads:
             try:
                 result = hook.run(payload)
@@ -224,8 +325,30 @@ def judge(request: dict) -> dict:
     if first_ask is not None:
         return _verdict(first_ask)
 
+    if unreadable_rename:
+        log_event(
+            "omp-guard",
+            {
+                "outcome": "ask",
+                "reason": "unreadable-rename",
+                "tool": tool_name,
+                "session_id": request.get("session_id"),
+            },
+        )
+        return {
+            "decision": "ask",
+            "reason": _UNREADABLE_RENAME,
+            "hook": "omp-guard",
+            "system_message": None,
+        }
+
     if tool == "bash":
-        return _verdict(bash_risk_judge.run(payloads[0]))
+        judged = dict(payloads[0])
+        prompt = request.get("user_prompt")
+        if isinstance(prompt, str) and prompt.strip():
+            # The host's latest user message: task context for the model judge.
+            judged["user_prompt"] = prompt
+        return _verdict(bash_risk_judge.run(judged))
     return _verdict(None)
 
 
