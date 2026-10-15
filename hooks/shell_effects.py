@@ -70,6 +70,10 @@ def _record_written_file(command: SimpleCommand, ctx: _Context) -> None:
         targets += [(arg, appends) for arg in command.args if not arg.startswith("-")]
     paths = [(os.path.normpath(os.path.join(d, os.path.expanduser(t))), appends)
              for t, appends in targets for d in directories]
+    if not paths:
+        return
+    # Commands retain the preceding mapping as their execution-time snapshot.
+    ctx.written_files = dict(ctx.written_files)
     for path, appends in dict.fromkeys(paths):
         earlier = ctx.written_files.get(path)
         if appends and earlier is not None:

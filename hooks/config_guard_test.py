@@ -259,6 +259,11 @@ def _make_archives(project: str) -> None:
 
     with tarfile.open(os.path.join(project, "payload.tar"), "w") as archive:
         add(archive, ".claude/settings.json", b"{}")
+    with tarfile.open(os.path.join(project, "omp-config.tar"), "w") as archive:
+        add(archive, ".omp/agent/config.yml", b"{}")
+    with tarfile.open(os.path.join(project, "project-notes.tar"), "w") as archive:
+        for root in (".codex", ".omp/agent", ".pi/agent", ".opencode", ".config/opencode"):
+            add(archive, f"{root}/notes.txt")
     with tarfile.open(os.path.join(project, "release.tgz"), "w:gz") as archive:
         add(archive, "release/bin/app")
     with tarfile.open(os.path.join(project, "nested.tar"), "w") as archive:
@@ -352,6 +357,8 @@ LANDING_CASES = [
     ("make -C mk-append", "ask", "claude-settings"),
     ("make -C mk-ok", None, None),
     ("tar xf payload.tar", "deny", "claude-settings"),
+    ("tar xf omp-config.tar", "deny", "omp-config"),
+    ("tar xf project-notes.tar", None, None),
     ("unzip -o hook.zip", "deny", "git-hooks"),
     ("tar -xf nested.tar --strip-components=1", "deny", "git-hooks"),
     ("cp -r template/. .", "deny", "claude-settings"),
@@ -402,6 +409,30 @@ def main() -> int:
             actual = _bash(command, project)
             ok = actual[0] == decision and (rule_id is None or actual[1] == rule_id)
             _check(ok, f"{command!r} -> {actual}", failures)
+
+        print("\nProject config ancestors:")
+        nested = os.path.join(project, "src")
+        os.mkdir(nested)
+        for root in (".claude", ".codex", ".omp", ".omp/agent", ".pi", ".pi/agent",
+                     ".opencode", ".config/opencode"):
+            for command in (f"rm -r {root}", f"mv {root} backup", f"chmod -R 000 {root}"):
+                actual = _bash(command, project)
+                _check(actual[0] == "deny", f"{command!r} -> {actual}", failures)
+        for command, cwd in (
+                (f"rm -r {os.path.join(project, '.omp')}", project),
+                ("cd src && rm -r .omp", project),
+                ("cd src && rm -r ../.omp", project),
+                ("mv ../.omp backup", nested),
+                (f"rm -r {os.path.join(project, '.omp')}", nested),
+                ("cd .. && mv .omp backup", nested)):
+            actual = _bash(command, cwd)
+            _check(actual[0] == "deny", f"{command!r} from {cwd!r} -> {actual}", failures)
+        for command in (
+                "rm -r assets", "mv docs backup", "rm -r .omp-backup", "mv .codex-cache backup",
+                "rm -r .config/editor", "echo x > docs/AGENTS.md", "echo x > .codex/notes.txt",
+                "rm -r .omp/cache", "mv .pi/notes backup", "echo x > .opencode/notes.md"):
+            actual = _bash(command, project)
+            _check(actual == (None, None), f"{command!r} -> {actual}", failures)
 
         print("\nCopies and extractions:")
         _make_archives(project)

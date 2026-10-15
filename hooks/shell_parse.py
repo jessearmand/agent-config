@@ -734,7 +734,8 @@ def _unwrap_and_record(argv: list[str], redirects: tuple[Redirect, ...], ctx: _C
         # modelled (`declare -A X; X[k]=rm; ${X[k]}`): what runs is not known.
         ctx.result.truncated = True
     command = SimpleCommand(tuple(argv), redirects, via, wrappers, dynamic_head, indirect,
-                            pipeline, stage, ctx.cwd, ctx.cwd_options, tuple(ctx.variables.items()))
+                            pipeline, stage, ctx.cwd, ctx.cwd_options, tuple(ctx.variables.items()),
+                            ctx.written_files)
     ctx.result.commands.append(command)
     if command.name in ("return", "exit") and not command.dynamic_head:
         # `return`, `then return`, `command return`: the enclosing function or

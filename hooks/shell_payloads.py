@@ -414,7 +414,7 @@ def _client_shell_commands(command: SimpleCommand, ctx: _Context) -> list[tuple[
     pattern = _CLIENT_SHELL[db_client_files.DIALECTS[command.name]]
     inputs = [db_client_files.ClientInput(text, True) for text in _client_texts(command)]
     inputs += _client_file_texts(command, ctx)
-    source = known_stdin(command, ctx.result, ctx.written_files)
+    source = known_stdin(command, ctx.result)
     if source is not None:
         inputs.append(source)
 

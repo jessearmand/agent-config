@@ -73,6 +73,16 @@ CASES = [
     ("dotnet nuget push app.nupkg", "deny", "publish-package"),
     ("pod trunk info AFNetworking", None, None),
     ("pod trunk push App.podspec", "deny", "publish-package"),
+    ("npm publish --dry-run=false", "deny", "publish-package"),
+    ("npm publish --dry-run false", "deny", "publish-package"),
+    ("npm publish --dry-run --no-dry-run", "deny", "publish-package"),
+    ("npm publish --dry-run=true --dry-run=false", "deny", "publish-package"),
+    ("npm publish -- --dry-run", "deny", "publish-package"),
+    ("npm publish -n", "deny", "publish-package"),
+    ("dotnet nuget push app.nupkg -n", "deny", "publish-package"),  # no-symbols, not dry-run
+    ("npm publish --dry-run", None, None),
+    ("npm publish --dry-run=true", None, None),
+    ("npm publish --dry-run=false --dry-run", None, None),
     ("gh release upload v1.0 dist/app.tar.gz", "ask", "push-artifact"),
     ("gh release upload v1.0 dist/app.tar.gz --clobber", "ask", "push-artifact"),
     ("gh release view v1.0", None, None),
@@ -465,6 +475,14 @@ CASES = [
     ("sqlite3 db \"DELETE FROM users RETURNING 'WHERE';\"", "deny", "sql-destructive"),  # a literal (PR review)
     ("psql -c \"DELETE FROM t WHERE note = 'a;b'\"", None, None),
     ("psql -c 'DELETE FROM \"my t\" WHERE id = 1'", None, None),
+    # Only the DELETE's own WHERE filters its rows, not a containing or nested query.
+    ("psql -c 'WITH deleted AS (DELETE FROM users RETURNING *) SELECT * FROM deleted WHERE false;'", "deny", "sql-destructive"),
+    ("psql -c 'DELETE FROM users RETURNING (SELECT id FROM audit WHERE id = 1);'", "deny", "sql-destructive"),
+    ("psql -c 'DELETE FROM users; SELECT * FROM users WHERE false;'", "deny", "sql-destructive"),
+    ("mysql -e 'DELETE u FROM users u JOIN (SELECT id FROM audit WHERE active = 1) a ON u.id = a.id'", "deny", "sql-destructive"),
+    ("psql -c 'WITH deleted AS (DELETE FROM users WHERE id = 1 RETURNING *) SELECT * FROM deleted WHERE false;'", None, None),
+    ("psql -c 'DELETE FROM users WHERE id IN (SELECT id FROM audit WHERE active = 1) RETURNING id;'", None, None),
+    ("psql -c 'DELETE FROM users /* WHERE id = 1 */ RETURNING id;'", "deny", "sql-destructive"),
     # MySQL `#` comments and PostgreSQL dollar quotes (PR review).
     ("mysql -e 'DELETE FROM users # WHERE id = 1'", "deny", "sql-destructive"),
     ("mysql -e 'DELETE FROM users WHERE id = 1 # cleanup'", None, None),

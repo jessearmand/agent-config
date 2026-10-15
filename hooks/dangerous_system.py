@@ -422,6 +422,27 @@ _PUBLISH = {
 }
 
 
+def _publish_dry_run(args: tuple[str, ...]) -> bool:
+    """Honor explicit dry-run booleans and negation, not unrelated short options."""
+    enabled = False
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--":
+            break
+        if arg == "--no-dry-run":
+            enabled = False
+        elif arg == "--dry-run":
+            enabled = True
+            if index + 1 < len(args) and args[index + 1] in ("true", "false"):
+                index += 1
+                enabled = args[index] == "true"
+        elif arg.startswith("--dry-run="):
+            enabled = arg.partition("=")[2] == "true"
+        index += 1
+    return enabled
+
+
 def _publish(command: SimpleCommand, ctx: RuleContext) -> str | None:
     verbs = _PUBLISH.get(command.name)
     if not verbs:
@@ -442,7 +463,7 @@ def _publish(command: SimpleCommand, ctx: RuleContext) -> str | None:
         return None
     if command.name == "dotnet" and words[0] == "nuget" and words[1:2] not in (["push"], ["delete"]):
         return None
-    if has(command.args, "--dry-run", "-n") or long_flag(command.args, "--dry-run"):
+    if _publish_dry_run(command.args):
         return None
     return f"{command.name} {words[0]}"
 

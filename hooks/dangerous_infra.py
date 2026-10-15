@@ -250,15 +250,14 @@ _SQL_NAME = rf"{_SQL_PART}(?:\.{_SQL_PART})*"
 # multi-table `DELETE t1, t2.* FROM …` (PR review), after its modifiers.
 _DELETE_MODIFIERS = r"(?:(?:LOW_PRIORITY|QUICK|IGNORE)\s+)*"
 _DELETE_TARGETS = rf"{_SQL_NAME}(?:\.\*)?(?:\s*,\s*{_SQL_NAME}(?:\.\*)?)*"
-_NO_WHERE = r"(?![^;]*\bWHERE\b)"
 _SQL_DESTRUCTIVE = re.compile(
-    # A DELETE is whole-table when no WHERE follows before the statement ends
-    # (`DELETE FROM t;`, `DELETE FROM t RETURNING id;`, `DELETE u FROM users AS u;`),
-    # and so is SQL Server's `DELETE t` without FROM, ending the statement.
+    # DELETE candidates are checked for a WHERE at their own nesting level below:
+    # neither a containing SELECT nor a nested subquery filters the deleted rows.
+    # SQL Server's `DELETE t` without FROM ends the statement.
     # DROP always removes a database object. Quoted data is blanked before matching;
     # matching the verb avoids an incomplete list of dialect-specific object names.
     rf"\b(?:DROP\s+[A-Z]+\b|TRUNCATE\b"
-    rf"|DELETE\s+{_DELETE_MODIFIERS}(?:{_DELETE_TARGETS}\s+)?FROM\s+{_SQL_NAME}{_NO_WHERE}"
+    rf"|(?P<delete_from>DELETE\s+{_DELETE_MODIFIERS}(?:{_DELETE_TARGETS}\s+)?FROM\s+{_SQL_NAME})"
     rf"|DELETE\s+(?!(?:FROM|CASCADE|RESTRICT|NO|SET|ON|TO|AS|OR|USING|TOP)\b){_SQL_NAME}\s*(?:;|$)"
     rf"|ALTER\s+TABLE\s+{_SQL_NAME}\s+DROP\b)",
     re.IGNORECASE,
@@ -277,9 +276,9 @@ _NOSQL = re.compile(r"\b(?:dropDatabase|FLUSHALL|FLUSHDB)\b|\.drop\(\s*\)|\bdele
                     re.IGNORECASE)
 
 
-def _command_file(path: str, command: SimpleCommand, ctx: RuleContext) -> db_client_files.ClientInput | None:
+def _command_file(path: str, command: SimpleCommand) -> db_client_files.ClientInput | None:
     """A file the client opens itself, as written on the line or on disk."""
-    return db_client_files.read_file(path, command.possible_cwds, ctx.parsed.written_files)
+    return db_client_files.read_file(path, command.possible_cwds, command.written_files)
 
 
 # sqlite3 options that take a value (so it is not read as the database or SQL).
@@ -301,7 +300,7 @@ def _sql_texts(command: SimpleCommand, ctx: RuleContext) -> list[db_client_files
                                           attached=command.name in db_client_files.GETOPT_CLIENTS)
     # `psql -f q.sql`, `sqlite3 -init q.sql`, `sqlcmd -i q.sql`: a file of statements,
     # as written on the line or on disk.
-    files = [_command_file(v, command, ctx) for v in db_client_files.file_option_values(command.name, command.args)]
+    files = [_command_file(v, command) for v in db_client_files.file_option_values(command.name, command.args)]
     if command.name == "sqlite3":
         # `-cmd SQL` runs a statement before the rest.
         texts += [command.args[i + 1] for i, a in enumerate(command.args[:-1]) if a in ("-cmd", "--cmd")]
@@ -311,7 +310,7 @@ def _sql_texts(command: SimpleCommand, ctx: RuleContext) -> list[db_client_files
     # `sqlite3 db < q.sql`: the file, as written earlier on the line or as on disk.
     for redirect in command.redirects:
         if redirect.op == "<" and not redirect.dynamic:
-            entry = _command_file(redirect.target, command, ctx)
+            entry = _command_file(redirect.target, command)
             if entry:
                 # The client sees stdin, not the filename: psql's \ir uses its cwd.
                 inputs.append(db_client_files.ClientInput(entry.text, entry.typed))
@@ -321,7 +320,7 @@ def _sql_texts(command: SimpleCommand, ctx: RuleContext) -> list[db_client_files
         inputs.append(source)
     # `.read q.sql`, `\i q.sql`, `source q.sql`: files the statements include (PR review).
     # Only a file the client opened itself has a directory for psql's `\ir`; on stdin it is the cwd's.
-    inputs += db_client_files.included(command.name, inputs, command.possible_cwds, ctx.parsed.written_files)
+    inputs += db_client_files.included(command.name, inputs, command.possible_cwds, command.written_files)
     return inputs
 
 
@@ -448,6 +447,27 @@ def _without_comments(sql: str, backslash_escapes: bool = False, blank_quoted: b
     return "".join(out)
 
 
+_SQL_SCOPE_TOKEN = re.compile(r"[();]|\bWHERE\b", re.IGNORECASE)
+
+
+def _delete_has_where(sql: str, start: int) -> bool:
+    """Whether this DELETE has its own WHERE in normalized, unquoted SQL."""
+    depth = 0
+    for token in _SQL_SCOPE_TOKEN.finditer(sql, start):
+        value = token.group(0).upper()
+        if value == "(":
+            depth += 1
+        elif value == ")":
+            if depth == 0:
+                break
+            depth -= 1
+        elif value == ";":
+            break
+        elif depth == 0:
+            return True
+    return False
+
+
 def _destructive_sql(command: SimpleCommand, ctx: RuleContext) -> MatchDetail | None:
     # A directly typed destructive statement takes precedence over an indirect file match.
     for entry in sorted(_sql_texts(command, ctx), key=lambda entry: not entry.typed):
@@ -459,7 +479,9 @@ def _destructive_sql(command: SimpleCommand, ctx: RuleContext) -> MatchDetail | 
             # A `WHERE` inside a literal (`DELETE FROM t RETURNING 'WHERE'`) is data:
             # Blank quoted contents so data such as SELECT 'DROP TABLE users' is harmless.
             unquoted = _without_comments(entry.text, backslash_escapes, blank_quoted=True)
-            match = _SQL_DESTRUCTIVE.search(unquoted)
+            match = next((candidate for candidate in _SQL_DESTRUCTIVE.finditer(unquoted)
+                          if candidate.group("delete_from") is None
+                          or not _delete_has_where(unquoted, candidate.start())), None)
             if command.name in ("mongo", "mongosh", "redis-cli"):
                 match = match or _NOSQL.search(_without_comments(entry.text, backslash_escapes))
             if match:

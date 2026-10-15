@@ -17,8 +17,17 @@ The current follow-up fixes stay within existing contracts:
   and equals-form long code options reach their existing scans.
 - Existing SQL controls: reuse bounded stdin resolution through pass-through
   `cat` stages and recognize destructive DROP operations across object types.
+  A WHERE restricts a DELETE only at that DELETE's own nesting level, not in
+  an outer query or nested subquery. SQL files and stdin use the contents tracked
+  when the command runs; later writes do not change earlier input.
 - Existing publishing controls: retain confirmation for release asset uploads
-  and allow read-only ownership and registry queries.
+  and allow read-only ownership and registry queries. Explicit dry-run booleans
+  and negation determine the exemption; `--dry-run=false` and unrelated `-n`
+  options do not exempt publishing.
+- Project configuration: removing, moving, or recursively changing permissions
+  on a protected configuration directory receives the same ancestor protection
+  across the supported agents. Ordinary files beneath those roots retain their
+  direct-file rules.
 - Model context: verify the existing no-space prose redaction at the outbound
   payload boundary, preserving non-secret path references.
 

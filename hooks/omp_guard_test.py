@@ -396,6 +396,42 @@ def main() -> int:
                     failures,
                 )
 
+        with _environment(), tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as sql_dir:
+            with open(os.path.join(sql_dir, "on-disk.sql"), "w", encoding="utf-8") as handle:
+                handle.write("DROP TABLE users;")
+            print("\nSQL file execution order:")
+            sql_cases = (
+                ("printf 'DROP TABLE users;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; cat q.sql | cat | psql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; sqlite3 db < q.sql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; psql -f q.sql; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'DROP TABLE users;' > q.sql; psql -c '\\i q.sql'; "
+                 "printf 'SELECT 1;' > q.sql", "deny"),
+                ("printf 'SELECT 1;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'DROP TABLE users;' > q.sql", "defer"),
+                ("printf 'DROP TABLE users;' > q.sql; printf 'SELECT 1;' > q.sql; "
+                 "sqlite3 db < q.sql", "defer"),
+                ("printf 'DROP TABLE users;' > q.sql; printf 'SELECT 1;' > q.sql; "
+                 "psql -f q.sql", "defer"),
+                ("cat on-disk.sql | sqlite3 db; printf 'SELECT 1;' > on-disk.sql", "ask"),
+                ("printf 'SELECT 1;' > q.sql; cat q.sql | sqlite3 db; "
+                 "printf 'DROP TABLE users;' > q.sql; sqlite3 db < q.sql", "deny"),
+            )
+            for command, expected in sql_cases:
+                request = _request("bash", {"command": command})
+                request["cwd"] = sql_dir
+                result = judge(request)
+                _check(
+                    result["decision"] == expected
+                    and result["hook"] == ("dangerous-commands" if expected != "defer" else ""),
+                    f"{command!r} -> {result['decision']}/{result['hook'] or '-'}",
+                    failures,
+                )
+
         with tempfile.TemporaryDirectory(dir=_SCRATCHPAD) as bindir:
             capture = os.path.join(bindir, "model-called")
             _shim(

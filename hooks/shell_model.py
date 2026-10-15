@@ -92,6 +92,9 @@ class SimpleCommand:
     # assignments (`X=1 cmd`) and assignments earlier in the line. Programs that
     # read a variable by name (`git --config-env=key=VAR`) look it up here.
     environment: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # Files written before this command starts. Parser writes replace the mapping
+    # rather than mutate it, so commands without intervening writes share a snapshot.
+    written_files: dict[str, WrittenFile] = field(default_factory=dict, compare=False, repr=False)
 
     @property
     def possible_cwds(self) -> tuple[str | None, ...]:

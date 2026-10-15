@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import db_client_files
 from shell_expand import command_output
-from shell_model import ParseResult, SimpleCommand, WrittenFile
+from shell_model import ParseResult, SimpleCommand
 
 
 def known_stdin(
-    command: SimpleCommand, parsed: ParseResult,
-    written_files: dict[str, WrittenFile] | None = None, depth: int = 0,
+    command: SimpleCommand, parsed: ParseResult, depth: int = 0,
 ) -> db_client_files.ClientInput | None:
     """Literal heredoc/pipe/file input, or None when its contents are unknown."""
     if depth >= db_client_files.MAX_DEPTH:
         return None
-    written = parsed.written_files if written_files is None else written_files
+    written = command.written_files
     redirects = [
         r
         for r in command.redirects
@@ -58,14 +57,14 @@ def known_stdin(
     if feeder.name != "cat":
         return None
     if not feeder.args:
-        return known_stdin(feeder, parsed, written, depth + 1)
+        return known_stdin(feeder, parsed, depth + 1)
     if any(a.startswith("-") and a != "-" for a in feeder.args):
         return None
     entries = [
-        known_stdin(feeder, parsed, written, depth + 1)
+        known_stdin(feeder, parsed, depth + 1)
         if name == "-"
         else db_client_files.read_file(
-            name, feeder.possible_cwds, written
+            name, feeder.possible_cwds, feeder.written_files
         )
         for name in feeder.args
     ]

@@ -258,10 +258,15 @@ def check_path(path: str, cwd: str, action: str = "write") -> ConfigRule | None:
 
 def _check_tree(candidates: list[str], cwd: str) -> ConfigRule | None:
     """A delete/move/chmod of a directory that holds a protected root."""
+    roots = _protected_roots(cwd)
+    # Project config names retain their meaning outside the command's cwd,
+    # including `cd src; rm -r ../.omp` and absolute paths to another project.
+    roots.extend(candidate for candidate in candidates if candidate.startswith("/")
+                 and any(candidate.endswith("/" + root) for root in PROJECT_PROTECTED_ROOTS))
     for candidate in candidates:
         if not candidate.startswith("/"):
             continue
-        for root in _protected_roots(cwd):
+        for root in roots:
             if _is_inside(root, candidate):
                 inside = root + "/x"
                 return next(

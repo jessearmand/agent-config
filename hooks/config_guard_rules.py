@@ -150,8 +150,18 @@ PROTECTED_ROOTS: tuple[str, ...] = (
     "/System/Library/LaunchAgents",
     "/System/Library/LaunchDaemons",
 )
-# Relative to the session's working directory.
-PROJECT_PROTECTED_ROOTS: tuple[str, ...] = (".claude", ".git/hooks")
+# Project ancestors of the paths in CONFIG_RULES, not blanket rules for their contents.
+PROJECT_PROTECTED_ROOTS: tuple[str, ...] = (
+    ".claude",
+    ".codex",
+    ".omp",
+    ".omp/agent",
+    ".pi",
+    ".pi/agent",
+    ".opencode",
+    ".config/opencode",
+    ".git/hooks",
+)
 
 # Directories (or files) the environment may move away from their default
 # place, as (variable, default). A path under the variable's value is also
